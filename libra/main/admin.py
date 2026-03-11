@@ -1,5 +1,5 @@
 from django.contrib import admin
-from models import Category, Book_Info
+from .models import Category, Book_Info
 
 # Register your models here.
 
@@ -15,4 +15,3 @@ class BookInfoAdmin(admin.ModelAdmin):
     list_editable = ['price', 'available']
     prepopulated_fields = {'slug': ('title',)}
     search_fields = ['title', 'author', 'isbn']
-    prepopulated_fields = {'slug': ('title',)}

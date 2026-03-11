@@ -1,0 +1,91 @@
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container">
+        <a class="navbar-brand" href="{% url 'main:index' %}">
+            <i class="bi bi-book-half"></i> Библиотека Колледжа
+        </a>
+        
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav me-auto">
+                <li class="nav-item">
+                    <a class="nav-link {% if request.resolver_match.url_name == 'index' %}active{% endif %}" 
+                       href="{% url 'main:index' %}">
+                        Главная
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if request.resolver_match.url_name == 'book_list_by_category' %}active{% endif %}" 
+                       href="{% url 'main:index' %}">
+                        Каталог
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{% url 'main:index' %}?category=textbook">
+                        Учебники
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{% url 'main:index' %}?category=science">
+                        Научная литература
+                    </a>
+                </li>
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" id="resourcesDropdown" role="button" 
+                       data-bs-toggle="dropdown">
+                        Ресурсы
+                    </a>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="#">Электронный каталог</a></li>
+                        <li><a class="dropdown-item" href="#">Базы данных</a></li>
+                        <li><a class="dropdown-item" href="#">Электронные книги</a></li>
+                    </ul>
+                </li>
+            </ul>
+            
+            <form class="d-flex search-box" method="GET" action="{% url 'main:index' %}">
+                <div class="input-group">
+                    <input type="text" class="form-control" name="q" 
+                           placeholder="Поиск книг..." value="{{ request.GET.q }}">
+                    <button class="btn btn-primary" type="submit">
+                        <i class="bi bi-search"></i>
+                    </button>
+                </div>
+            </form>
+            
+            <ul class="navbar-nav ms-3">
+                {% if user.is_authenticated %}
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" 
+                       data-bs-toggle="dropdown">
+                        <i class="bi bi-person-circle"></i> {{ user.username }}
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li><a class="dropdown-item" href="{% url 'main:profile' %}">
+                            <i class="bi bi-person"></i> Мой профиль
+                        </a></li>
+                        <li><a class="dropdown-item" href="#">
+                            <i class="bi bi-book"></i> Мои книги
+                        </a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="{% url 'admin:index' %}">
+                            <i class="bi bi-gear"></i> Админ-панель
+                        </a></li>
+                        <li><a class="dropdown-item" href="{% url 'logout' %}">
+                            <i class="bi bi-box-arrow-right"></i> Выйти
+                        </a></li>
+                    </ul>
+                </li>
+                {% else %}
+                <li class="nav-item">
+                    <a class="btn btn-outline-light" href="{% url 'login' %}">
+                        <i class="bi bi-box-arrow-in-right"></i> Войти
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </div>
+    </div>
+</nav>

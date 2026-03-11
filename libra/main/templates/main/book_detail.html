@@ -1,0 +1,154 @@
+{% extends 'library_app/base.html' %}
+{% load static %}
+
+{% block title %}{{ book.title }} - Библиотека Колледжа{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'index' %}">Главная</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'catalog' %}">Каталог</a></li>
+            <li class="breadcrumb-item active">{{ book.title|truncatechars:30 }}</li>
+        </ol>
+    </nav>
+    
+    <div class="row">
+        <div class="col-md-4">
+            <div class="card mb-4">
+                <div class="card-body text-center">
+                    {% if book.image %}
+                    <img src="{{ book.image.url }}" class="img-fluid rounded" alt="{{ book.title }}" style="max-height: 400px;">
+                    {% else %}
+                    <div class="bg-light py-5 rounded">
+                        <i class="bi bi-book" style="font-size: 5rem; color: #6c757d;"></i>
+                        <p class="mt-3 text-muted">Нет обложки</p>
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <div class="card-footer">
+                    <div class="d-grid gap-2">
+                        {% if user.is_authenticated %}
+                            {% if book.available_copies > 0 %}
+                                {% if not is_reserved %}
+                                <a href="{% url 'main:reserve_book' book.id %}" class="btn btn-success btn-lg">
+                                    <i class="bi bi-bookmark-plus"></i> Забронировать
+                                </a>
+                                {% else %}
+                                <!-- Показываем информацию о бронировании -->
+                                <div class="alert alert-info">
+                                    <i class="bi bi-bookmark-check"></i> Забронирована вами
+                                    {% if current_reservation %}
+                                    <br><small>Действует до: {{ current_reservation.expiry_date|date:"d.m.Y H:i" }}</small>
+                                    {% endif %}
+                                </div>
+                                {# cancel_reservation view removed; link intentionally omitted #}
+                                {% endif %}
+                            {% else %}
+                            <button class="btn btn-danger btn-lg" disabled>
+                                <i class="bi bi-bookmark-x"></i> Нет в наличии
+                            </button>
+                            {% endif %}
+                            
+                            {% for loan in user_loans %}
+                            <a href="#" class="btn btn-warning">
+                                <i class="bi bi-calendar-plus"></i> Продлить
+                            </a>
+                            {% endfor %}
+                        {% else %}
+                        <a href="{% url 'login' %}?next={% url 'main:book_detail' book.id %}" class="btn btn-primary btn-lg">
+                            <i class="bi bi-box-arrow-in-right"></i> Войдите для бронирования
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Информация о доступности -->
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="bi bi-info-circle"></i> Информация о доступности</h5>
+                </div>
+                <div class="card-body">
+                    <ul class="list-group list-group-flush">
+                        <li class="list-group-item d-flex justify-content-between">
+                            <span>Всего экземпляров:</span>
+                            <span class="badge bg-secondary">{{ book.total_copies }}</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between">
+                            <span>Доступно сейчас:</span>
+                            <span class="badge {% if book.available_copies > 0 %}bg-success{% else %}bg-danger{% endif %}">
+                                {{ book.available_copies }}
+                            </span>
+                        </li>
+                        <li class="list-group-item">
+                            <small class="text-muted">
+                                На руках у читателей: {{ checked_out }}
+                            </small>
+                        </li>
+                        {# location field not present in model; omitted #}
+                    </ul>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-body">
+                    <h1 class="card-title">{{ book.title }}</h1>
+                    
+                    <div class="mb-3">
+                        <span class="badge bg-primary">{{ book.get_category_display }}</span>
+                        <span class="badge bg-secondary ms-1">{{ book.year }} год</span>
+                        <span class="badge bg-info ms-1">ISBN: {{ book.isbn }}</span>
+                    </div>
+                    
+                    <h4 class="text-muted mb-4">
+                        <i class="bi bi-person"></i> {{ book.author }}
+                    </h4>
+                    
+                    <div class="mb-4">
+                        <h5><i class="bi bi-journal-text"></i> Описание</h5>
+                        <p class="card-text">{{ book.description|linebreaks }}</p>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h5><i class="bi bi-building"></i> Издательство</h5>
+                            <p>{{ book.publisher }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <h5><i class="bi bi-calendar-event"></i> Дата добавления</h5>
+                            <p>{{ book.date_added|date:"d.m.Y" }}</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card-footer">
+                    <h5><i class="bi bi-bookmarks"></i> Похожие книги</h5>
+                    <div class="row mt-3">
+                        {% for similar_book in similar_books %}
+                        <div class="col-md-4 mb-3">
+                            <div class="card h-100">
+                                <div class="card-body">
+                                    <h6 class="card-title">{{ similar_book.title|truncatechars:40 }}</h6>
+                                    <p class="card-text small text-muted">{{ similar_book.author }}</p>
+                                    <a href="{% url 'main:book_detail' similar_book.id %}" class="btn btn-sm btn-outline-primary">
+                                        Подробнее
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <div class="col-12">
+                            <p class="text-muted">Нет похожих книг</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
