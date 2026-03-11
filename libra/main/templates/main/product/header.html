@@ -1,7 +1,7 @@
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
     <div class="container">
         <a class="navbar-brand" href="{% url 'main:index' %}">
-            <i class="bi bi-book-half"></i> Библиотека Колледжа
+            <i class="bi bi-book-half"></i> Колледж экономики и техники
         </a>
         
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
@@ -11,7 +11,7 @@
         <div class="collapse navbar-collapse" id="navbarNav">
             <ul class="navbar-nav me-auto">
                 <li class="nav-item">
-                    <a class="nav-link {% if request.resolver_match.url_name == 'index' %}active{% endif %}" 
+                    <a class="nav-link {% if request.resolver_match.url_name == 'main_page' %}active{% endif %}" 
                        href="{% url 'main:index' %}">
                         Главная
                     </a>
@@ -21,28 +21,6 @@
                        href="{% url 'main:index' %}">
                         Каталог
                     </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="{% url 'main:index' %}?category=textbook">
-                        Учебники
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="{% url 'main:index' %}?category=science">
-                        Научная литература
-                    </a>
-                </li>
-                <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle" href="#" id="resourcesDropdown" role="button" 
-                       data-bs-toggle="dropdown">
-                        Ресурсы
-                    </a>
-                    <ul class="dropdown-menu">
-                        <li><a class="dropdown-item" href="#">Электронный каталог</a></li>
-                        <li><a class="dropdown-item" href="#">Базы данных</a></li>
-                        <li><a class="dropdown-item" href="#">Электронные книги</a></li>
-                    </ul>
-                </li>
             </ul>
             
             <form class="d-flex search-box" method="GET" action="{% url 'main:index' %}">

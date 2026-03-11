@@ -1,18 +1,10 @@
-{% extends 'library_app/base.html' %}
+{% extends 'main/base.html' %}
 {% load static %}
 
 {% block title %}{{ book.title }} - Библиотека Колледжа{% endblock %}
 
 {% block content %}
 <div class="container mt-4">
-    <nav aria-label="breadcrumb">
-        <ol class="breadcrumb">
-            <li class="breadcrumb-item"><a href="{% url 'index' %}">Главная</a></li>
-            <li class="breadcrumb-item"><a href="{% url 'catalog' %}">Каталог</a></li>
-            <li class="breadcrumb-item active">{{ book.title|truncatechars:30 }}</li>
-        </ol>
-    </nav>
-    
     <div class="row">
         <div class="col-md-4">
             <div class="card mb-4">
