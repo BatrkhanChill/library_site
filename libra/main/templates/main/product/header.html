@@ -11,13 +11,13 @@
         <div class="collapse navbar-collapse" id="navbarNav">
             <ul class="navbar-nav me-auto">
                 <li class="nav-item">
-                    <a class="nav-link {% if request.resolver_match.url_name == 'main_page' %}active{% endif %}" 
-                       href="{% url 'main:index' %}">
+                    <a class="nav-link {% if request.resolver_match.url_name == 'main:main_page' %}active{% endif %}" 
+                       href="{% url 'main:main_page' %}">
                         Главная
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link {% if request.resolver_match.url_name == 'book_list_by_category' %}active{% endif %}" 
+                    <a class="nav-link {% if request.resolver_match.url_name == 'main:index' %}active{% endif %}" 
                        href="{% url 'main:index' %}">
                         Каталог
                     </a>

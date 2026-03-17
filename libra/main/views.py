@@ -7,6 +7,10 @@ from django.contrib import messages
 
 
 # Create your views here.
+
+def main_page(request, category_slug=None):
+    return render(request, 'main/main_page.html')
+
 def index(request, category_slug=None):
     categories = Category.objects.all()
     books = Book_Info.objects.filter(available=True)
