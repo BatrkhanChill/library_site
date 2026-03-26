@@ -21,38 +21,15 @@
                 
                 <div class="card-footer">
                     <div class="d-grid gap-2">
-                        {% if user.is_authenticated %}
-                            {% if book.available_copies > 0 %}
-                                {% if not is_reserved %}
-                                <a href="{% url 'main:reserve_book' book.id %}" class="btn btn-success btn-lg">
-                                    <i class="bi bi-bookmark-plus"></i> Забронировать
-                                </a>
-                                {% else %}
-                                <!-- Показываем информацию о бронировании -->
-                                <div class="alert alert-info">
-                                    <i class="bi bi-bookmark-check"></i> Забронирована вами
-                                    {% if current_reservation %}
-                                    <br><small>Действует до: {{ current_reservation.expiry_date|date:"d.m.Y H:i" }}</small>
-                                    {% endif %}
-                                </div>
-                                {# cancel_reservation view removed; link intentionally omitted #}
-                                {% endif %}
-                            {% else %}
-                            <button class="btn btn-danger btn-lg" disabled>
-                                <i class="bi bi-bookmark-x"></i> Нет в наличии
-                            </button>
-                            {% endif %}
-                            
-                            {% for loan in user_loans %}
-                            <a href="#" class="btn btn-warning">
-                                <i class="bi bi-calendar-plus"></i> Продлить
-                            </a>
-                            {% endfor %}
-                        {% else %}
-                        <a href="{% url 'login' %}?next={% url 'main:book_detail' book.id %}" class="btn btn-primary btn-lg">
-                            <i class="bi bi-box-arrow-in-right"></i> Войдите для бронирования
+                        {% if book.pdf_file %}
+                        <a href="{{ book.pdf_file.url }}" class="btn btn-info btn-lg" download>
+                            <i class="bi bi-download"></i> Скачать PDF
                         </a>
                         {% endif %}
+
+                        <div class="alert alert-secondary mb-0" role="alert">
+                            <strong>Доступно экземпляров:</strong> {{ book.available_copies }} из {{ book.total_copies }}
+                        </div>
                     </div>
                 </div>
             </div>

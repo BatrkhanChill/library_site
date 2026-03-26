@@ -90,8 +90,28 @@
 
 <footer class="footer py-4">
     <div class="container text-center">
+        <nav class = "navbar navbar-expand-lg navbar-light bg-light">
+            <div class="container">
+                <img src="{% static 'images/logo.png' %}" alt="Логотип" width="30" height="30" class="d-inline-block align-top">
+                <a class="navbar-brand" href="{% url 'main:main_page' %}">
+                    Библиотека Усть-Каменогорского колледжа экономики и техники
+                </a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" 
+                        aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse" id="navbarNav">
+                    <ul class="navbar-nav ms-auto">
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'main:main_page' %}">Главная</a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </nav>
         <p>&copy; 2024 Колледж экономики и техники. Все права защищены.</p>
-        <p>Контакты: <a href="mailto:info@college.edu.ru">info@college.edu.ru</a></p>
+        <p>Контакты: <a href="mailto:ukkaf@rambler.ru">ukkaf@rambler.ru</a></p>
+        <p>Адрес: <a href="https://2gis.kz/ust-kamenogorsk/firm/70000001020617575?m=82.600985%2C49.979649%2F16.98" </a>г. Усть-Каменогорск, ул. Бажова, 68</p>
     </div>
 </footer>
 
