@@ -1,82 +1,107 @@
-{% load static %}
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-    <div class="container">
-        <img src="{% static 'images/logo.png' %}" alt="Логотип" width="30" height="30" class="d-inline-block align-top">
-        <a class="navbar-brand" href="{% url 'main:main_page' %}">
-            Усть-Каменогорский колледж экономики и техники
-        </a>
-        
-        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-            <span class="navbar-toggler-icon"></span>
-        </button>
-        
-        <div class="collapse navbar-collapse" id="navbarNav">
-            <ul class="navbar-nav me-auto">
-                <li class="nav-item">
-                    <a class="nav-link {% if request.resolver_match.url_name == 'main:main_page' %}active{% endif %}" 
-                       href="{% url 'main:main_page' %}">
-                        Главная
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link {% if request.resolver_match.url_name == 'main:index' %}active{% endif %}" 
-                       href="{% url 'main:index' %}">
-                        Каталог
-                    </a>
-            </ul>
-            
-            <form class="d-flex search-box" method="GET" action="{% url 'main:index' %}">
-                <div class="input-group">
-                    <input type="text" class="form-control" name="q" 
-                           placeholder="Поиск книг..." value="{{ request.GET.q }}">
-                    <button class="btn btn-primary" type="submit">
-                        <i class="bi bi-search"></i>
+{% load static i18n %}
+<header class="site-header">
+    <div class="topbar py-2">
+        <div class="container d-flex flex-column flex-md-row justify-content-between align-items-center">
+            <div class="topbar-left text-white small">
+                <span class="me-3"><i class="bi bi-geo-alt-fill me-1"></i> {% trans "Усть-Каменогорск, ул. Бажова, 68" %}</span>
+                <span class="me-3"><i class="bi bi-telephone-fill me-1"></i> 50-25-00</span>
+                <span><i class="bi bi-envelope-fill me-1"></i> ukkaf@rambler.ru</span>
+            </div>
+            <div class="topbar-right text-white medium mt-2 mt-md-0 d-flex align-items-center">
+                <a href="https://www.instagram.com/cef.kafu" class="text-white text-decoration-none me-3"><i class="bi bi-instagram"></i></a>
+                <a href="https://www.tiktok.com/@cef_college" class="text-white text-decoration-none me-3"><i class="bi bi-tiktok"></i></a>
+                <div class="dropdown">
+                    <button class="btn btn-outline-light btn-sm dropdown-toggle" type="button" id="languageDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                        {% get_current_language as LANGUAGE_CODE %}
+                        {% if LANGUAGE_CODE == 'ru' %}Русский{% elif LANGUAGE_CODE == 'kk' %}Қазақша{% else %}English{% endif %}
                     </button>
-                </div>
-            </form>
-            
-            <ul class="navbar-nav ms-3">
-                {% if user.is_authenticated %}
-                <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" 
-                       data-bs-toggle="dropdown">
-                        <i class="bi bi-person-circle"></i> {{ user.username }}
-                    </a>
-                    <ul class="dropdown-menu dropdown-menu-end">
-                        <li><a class="dropdown-item" href="{% url 'main:profile' %}">
-                            <i class="bi bi-person"></i> Мой профиль
-                        </a></li>
-                        <li><a class="dropdown-item" href="#">
-                            <i class="bi bi-book"></i> Мои книги
-                        </a></li>
-                        {% if user.is_staff %}
-                        <li><hr class="dropdown-divider"></li>
-                        <li><a class="dropdown-item" href="{% url 'main:reservation_journal' %}">
-                            <i class="bi bi-journal-check"></i> Журнал бронирования
-                        </a></li>
-                        <li><a class="dropdown-item" href="{% url 'admin:index' %}">
-                            <i class="bi bi-gear"></i> Админ-панель
-                        </a></li>
-                        {% endif %}
-                        <li><hr class="dropdown-divider"></li>
-                        <li><a class="dropdown-item" href="{% url 'logout' %}">
-                            <i class="bi bi-box-arrow-right"></i> Выйти
-                        </a></li>
+                    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="languageDropdown">
+                        <li>
+                            <form action="{% url 'set_language' %}" method="post" class="m-0">
+                                {% csrf_token %}
+                                <input name="next" type="hidden" value="{{ request.get_full_path }}">
+                                <button type="submit" name="language" value="ru" class="dropdown-item">Русский</button>
+                            </form>
+                        </li>
+                        <li>
+                            <form action="{% url 'set_language' %}" method="post" class="m-0">
+                                {% csrf_token %}
+                                <input name="next" type="hidden" value="{{ request.get_full_path }}">
+                                <button type="submit" name="language" value="kk" class="dropdown-item">Қазақша</button>
+                            </form>
+                        </li>
+                        <li>
+                            <form action="{% url 'set_language' %}" method="post" class="m-0">
+                                {% csrf_token %}
+                                <input name="next" type="hidden" value="{{ request.get_full_path }}">
+                                <button type="submit" name="language" value="en" class="dropdown-item">English</button>
+                            </form>
+                        </li>
                     </ul>
-                </li>
-                {% else %}
-                <li class="nav-item me-2">
-                    <a class="btn btn-outline-light" href="{% url 'login' %}">
-                        <i class="bi bi-box-arrow-in-right"></i> Войти
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="btn btn-light text-dark" href="{% url 'main:register' %}">
-                        <i class="bi bi-person-plus"></i> Регистрация
-                    </a>
-                </li>
-                {% endif %}
-            </ul>
+                </div>
+            </div>
         </div>
     </div>
-</nav>
+    <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm">
+        <div class="container">
+            <a class="navbar-brand d-flex align-items-center" href="{% url 'main:main_page' %}">
+                <img src="{% static 'images/logo.png' %}" alt="{% trans "Логотип" %}" width="38" height="38" class="me-2">
+                {% trans "Библиотека колледжа" %}
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav"
+                    aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'main:main_page' %}active{% endif %}" href="{% url 'main:main_page' %}">
+                            {% trans "Главная" %}
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'main:index' %}active{% endif %}" href="{% url 'main:index' %}">
+                            {% trans "Каталог" %}
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="https://cef.kafu.kz">{% trans "Сайт колледжа" %}
+                        </a>
+                    </li>
+                </ul>
+                <form class="d-none d-lg-flex align-items-center" method="GET" action="{% url 'main:index' %}">
+                    <div class="input-group">
+                        <input type="text" class="form-control" name="q" placeholder="{% trans "Поиск книг..." %}" value="{{ request.GET.q }}">
+                        <button class="btn btn-primary" type="submit"><i class="bi bi-search"></i></button>
+                    </div>
+                </form>
+                <ul class="navbar-nav ms-lg-3 mt-3 mt-lg-0">
+                    {% if user.is_authenticated %}
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown">
+                            <i class="bi bi-person-circle"></i> {{ user.username }}
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="{% url 'main:profile' %}"><i class="bi bi-person"></i> {% trans "Мой профиль" %}</a></li>
+                            {% if user.is_staff %}
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{% url 'main:reservation_journal' %}"><i class="bi bi-journal-check"></i> {% trans "Журнал бронирования" %}</a></li>
+                            <li><a class="dropdown-item" href="{% url 'admin:index' %}"><i class="bi bi-gear"></i> {% trans "Админ-панель" %}</a></li>
+                            {% endif %}
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{% url 'logout' %}"><i class="bi bi-box-arrow-right"></i> {% trans "Выйти" %}</a></li>
+                        </ul>
+                    </li>
+                    {% else %}
+                    <li class="nav-item me-2">
+                        <a class="btn btn-outline-primary" href="{% url 'login' %}"><i class="bi bi-box-arrow-in-right"></i> {% trans "Войти" %}</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="btn btn-primary text-white" href="{% url 'main:register' %}"><i class="bi bi-person-plus"></i> {% trans "Регистрация" %}</a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </nav>
+</header>

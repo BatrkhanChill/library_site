@@ -1,12 +1,15 @@
 {% extends "main/base.html" %}
+{% load i18n %}
 {% block title %}
 {%if category%}{{ category.name }}{%elif query%}Результаты поиска{%else%}Каталог книг{%endif%}
 {% endblock %}
     
     {% block content %}
-    <div class="row">
-        <!-- Sidebar Filters -->
-        <div class="col-md-3">
+    <div class="container-xl py-5" style="padding-left: 1.5rem; padding-right: 1.5rem;">
+        <div class="catalog-page p-4 rounded-4 shadow-sm" style="padding-left: 2rem; padding-right: 2rem;">
+            <div class="row g-4">
+            <!-- Sidebar Filters -->
+            <div class="col-md-3">
             <div class="card mb-3">
                 <div class="card-header bg-primary text-white">
                     <h5 class="mb-0"><i class="bi bi-funnel"></i> Фильтры</h5>
@@ -21,7 +24,7 @@
                         <!-- School Type Filter -->
                         {% if school_types %}
                         <div class="mb-3">
-                            <h6 class="text-muted"><i class="bi bi-building"></i> Тип школы</h6>
+                            <h6 class="text-muted"><i class="bi bi-building"></i> {% trans "Тип школы" %}</h6>
                             {% for school_type in school_types %}
                             <div class="form-check">
                                 <input class="form-check-input" type="checkbox" name="school_type" 
@@ -39,7 +42,7 @@
                         <!-- Specialization Filter -->
                         {% if specializations %}
                         <div class="mb-3">
-                            <h6 class="text-muted"><i class="bi bi-mortarboard"></i> Специализация</h6>
+                            <h6 class="text-muted"><i class="bi bi-mortarboard"></i> {% trans "Специализация" %}</h6>
                             {% for specialization in specializations %}
                             <div class="form-check">
                                 <input class="form-check-input" type="checkbox" name="specialization" 
@@ -54,31 +57,14 @@
                         <hr>
                         {% endif %}
                         
-                        <!-- Target Group Filter -->
-                        {% if all_target_groups %}
-                        <div class="mb-3">
-                            <h6 class="text-muted"><i class="bi bi-people"></i> Целевая группа</h6>
-                            {% for group in all_target_groups %}
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" name="target_group" 
-                                       value="{{ group }}" id="group_{{ forloop.counter }}"
-                                       {% if group in selected_target_groups %}checked{% endif %}>
-                                <label class="form-check-label" for="group_{{ forloop.counter }}">
-                                    {{ group }}
-                                </label>
-                            </div>
-                            {% endfor %}
-                        </div>
-                        <hr>
-                        {% endif %}
                         
                         <!-- Filter Buttons -->
                         <div class="d-grid gap-2">
                             <button type="submit" class="btn btn-primary">
-                                <i class="bi bi-check-circle"></i> Применить фильтры
+                                <i class="bi bi-check-circle"></i> {% trans "Применить фильтры" %}
                             </button>
                             <a href="{% if category %}{% url 'main:book_list_by_category' category.slug %}{% else %}{% url 'main:index' %}{% endif %}" class="btn btn-outline-secondary">
-                                <i class="bi bi-x-circle"></i> Очистить
+                                <i class="bi bi-x-circle"></i> {% trans "Очистить" %}
                             </a>
                         </div>
                     </form>
@@ -97,12 +83,12 @@
                 </h1>
                 <div class="dropdown">
                     <button class="btn btn-secondary dropdown-toggle" type="button" id="sortDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                        Сортировать по
+                        {% trans "Сортировать по" %}
                     </button>
                     <ul class="dropdown-menu" aria-labelledby="sortDropdown">
-                        <li><a class="dropdown-item" href="?{% if request.GET.q %}q={{ request.GET.q }}&{% endif %}sort=title">Названию</a></li>
-                        <li><a class="dropdown-item" href="?{% if request.GET.q %}q={{ request.GET.q }}&{% endif %}sort=author">Автору</a></li>
-                        <li><a class="dropdown-item" href="?{% if request.GET.q %}q={{ request.GET.q }}&{% endif %}sort=year">Году издания</a></li>
+                        <li><a class="dropdown-item" href="?{% if request.GET.q %}q={{ request.GET.q }}&{% endif %}sort=title">{% trans "Названию" %}</a></li>
+                        <li><a class="dropdown-item" href="?{% if request.GET.q %}q={{ request.GET.q }}&{% endif %}sort=author">{% trans "Автору" %}</a></li>
+                        <li><a class="dropdown-item" href="?{% if request.GET.q %}q={{ request.GET.q }}&{% endif %}sort=year">{% trans "Году издания" %}</a></li>
                     </ul>
                 </div>
             </div>
@@ -111,7 +97,7 @@
 
             {% if not books %}
                 <div class="alert alert-info" role="alert">
-                    <i class="bi bi-info-circle-fill me-2"></i> Книги не найдены.
+                    <i class="bi bi-info-circle-fill me-2"></i> {% trans "Книги не найдены." %}
                 </div>
             {% else %}
                 <div class="row row-cols-1 row-cols-md-3 row-cols-lg-3 g-4">
@@ -145,6 +131,15 @@
                                         <i class="bi bi-download"></i> Скачать PDF
                                     </a>
                                     {% endif %}
+                                    {% if Book_Info.id in saved_books_ids %}
+                                    <a href="{% url 'main:toggle_saved_book' Book_Info.id %}" class="btn btn-outline-danger btn-sm">
+                                        <i class="bi bi-bookmark-dash"></i> Убрать
+                                    </a>
+                                    {% else %}
+                                    <a href="{% url 'main:toggle_saved_book' Book_Info.id %}" class="btn btn-outline-success btn-sm">
+                                        <i class="bi bi-bookmark-plus"></i> Сохранить
+                                    </a>
+                                    {% endif %}
                                 </div>
                             </div>
                         </div>
@@ -152,6 +147,7 @@
                     {% endfor %}
                 </div>
             {% endif %}
+        </div>
         </div>
     </div>
 

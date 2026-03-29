@@ -1,6 +1,8 @@
+from django import forms
 from django.contrib import admin
 from django.utils.html import format_html
 from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
 from .models import Category, Book_Info, School_Type, Specialization, BookReservationJournal, Reservation
 
 # Register your models here.
@@ -23,15 +25,46 @@ class SpecializationAdmin(admin.ModelAdmin):
 @admin.register(Book_Info)
 class BookInfoAdmin(admin.ModelAdmin):
     list_filter = ['available', 'created', 'updated', 'category', 'school_type', 'specialization']
-    list_editable = ['price', 'available']
+    list_editable = ['available']
     prepopulated_fields = {'slug': ('title',)}
-    search_fields = ['title', 'author', 'isbn', 'target_group']
-    list_display = ['title', 'author', 'price', 'available', 'school_type', 'specialization', 'target_group', 'pdf_file']
-    fields = ['title', 'slug', 'author', 'description', 'isbn', 'publication_date', 'price', 'available', 'total_copies', 'available_copies', 'category', 'school_type', 'specialization', 'target_group', 'image', 'pdf_file']
+    search_fields = ['title', 'author', 'isbn']
+    list_display = ['title', 'author', 'available', 'school_type', 'specialization', 'pdf_file']
+    fields = ['title', 'slug', 'author', 'description', 'isbn', 'publication_date', 'available', 'total_copies', 'available_copies', 'category', 'school_type', 'specialization', 'image', 'pdf_file']
+
+
+class BookReservationJournalForm(forms.ModelForm):
+    person_type = forms.ChoiceField(
+        choices=BookReservationJournal.PERSON_TYPE_CHOICES,
+        widget=forms.RadioSelect,
+        label=_('Тип клиента'),
+        initial='student'
+    )
+
+    class Meta:
+        model = BookReservationJournal
+        fields = '__all__'
+
+    def clean(self):
+        cleaned_data = super().clean()
+        person_type = cleaned_data.get('person_type')
+
+        if person_type == 'teacher':
+            cleaned_data['student_name'] = ''
+            cleaned_data['group_name'] = ''
+            if not cleaned_data.get('teacher_name'):
+                self.add_error('teacher_name', _('Введите имя преподавателя'))
+        else:
+            if not cleaned_data.get('student_name'):
+                self.add_error('student_name', _('Введите имя студента'))
+            if not cleaned_data.get('group_name'):
+                self.add_error('group_name', _('Введите группу'))
+
+        return cleaned_data
 
 
 @admin.register(BookReservationJournal)
 class BookReservationJournalAdmin(admin.ModelAdmin):
+    form = BookReservationJournalForm
     """
     Admin interface for book reservation journal
     Only admins can access and modify this
@@ -55,8 +88,8 @@ class BookReservationJournalAdmin(admin.ModelAdmin):
             status='returned',
             returned_date=timezone.now()
         )
-        self.message_user(request, f'{updated} книг(и) отмечены как возвращённые')
-    mark_as_returned.short_description = "Отметить как возвращённую"
+        self.message_user(request, _('%(count)d книг(и) отмечены как возвращённые') % {'count': updated})
+    mark_as_returned.short_description = _('Отметить как возвращённую')
     
     actions = [mark_as_returned]
     
@@ -64,25 +97,25 @@ class BookReservationJournalAdmin(admin.ModelAdmin):
     def status_display(self, obj):
         if obj.status == 'reserved':
             color = 'orange'
-            label = 'Зарезервирована'
+            label = _('Зарезервирована')
         else:
             color = 'green'
-            label = 'Возвращена'
+            label = _('Возвращена')
         return format_html(
             '<span style="color: white; background-color: {}; padding: 3px 10px; border-radius: 3px; font-weight: bold;">{}</span>',
             color,
             label,
         )
-    status_display.short_description = 'Статус'
+    status_display.short_description = _('Статус')
     
     # Display expiration status
     def expiration_status(self, obj):
         if obj.status == 'returned':
-            return format_html('<span style="color: green;">✓ Возвращена</span>')
+            return format_html('<span style="color: green;">✓ {}</span>', _('Возвращена'))
         if obj.is_expired:
-            return format_html('<span style="color: red; font-weight: bold;">⚠ Просрочена</span>')
-        return format_html('<span style="color: blue;">Активна</span>')
-    expiration_status.short_description = 'Статус срока'
+            return format_html('<span style="color: red; font-weight: bold;">⚠ {}</span>', _('Просрочена'))
+        return format_html('<span style="color: blue;">{}</span>', _('Активна'))
+    expiration_status.short_description = _('Статус срока')
     
     list_display = [
         'id',
@@ -118,10 +151,16 @@ class BookReservationJournalAdmin(admin.ModelAdmin):
     ]
     
     fieldsets = (
-        ('Информация о студенте', {
+        (_('Тип клиента'), {
+            'fields': ('person_type',)
+        }),
+        (_('Информация о студенте'), {
             'fields': ('student_name', 'group_name')
         }),
-        ('Информация о бронировании', {
+        (_('Информация о преподавателе'), {
+            'fields': ('teacher_name',)
+        }),
+        (_('Информация о бронировании'), {
             'fields': (
                 'book',
                 'reservation_datetime',
@@ -129,14 +168,17 @@ class BookReservationJournalAdmin(admin.ModelAdmin):
                 'returned_date',
             )
         }),
-        ('Статус', {
+        (_('Статус'), {
             'fields': ('status', 'status_display', 'is_expired')
         }),
-        ('Дополнительное', {
+        (_('Дополнительное'), {
             'fields': ('notes', 'created_by'),
             'classes': ('collapse',)
         }),
     )
+
+    class Media:
+        js = ('js/bookreservationjournal_admin.js',)
     
     def get_queryset(self, request):
         queryset = super().get_queryset(request)

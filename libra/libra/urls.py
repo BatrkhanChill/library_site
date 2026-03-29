@@ -23,6 +23,7 @@ from main import views as main_views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('i18n/', include('django.conf.urls.i18n')),
     path('', include('main.urls', namespace='main')),
     path('accounts/login/', auth_views.LoginView.as_view(template_name='registration/login.html'), name='login'),
     path('accounts/logout/', main_views.logout_and_register, name='logout'),

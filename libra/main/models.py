@@ -2,6 +2,7 @@ from django.db import models
 from django.urls import reverse
 from django.contrib.auth.models import User
 from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 
@@ -12,8 +13,8 @@ class Category(models.Model):
 
     class Meta:
         ordering = ['name']
-        verbose_name = 'Жанр'
-        verbose_name_plural = 'Жанры'
+        verbose_name = _('Жанр')
+        verbose_name_plural = _('Жанры')
 
 
     def __str__(self):
@@ -29,8 +30,8 @@ class School_Type(models.Model):
     slug = models.SlugField(max_length=100, unique=True)
     
     class Meta:
-        verbose_name = 'Тип школы'
-        verbose_name_plural = 'Типы школ'
+        verbose_name = _('Тип школы')
+        verbose_name_plural = _('Типы школ')
     
     def __str__(self):
         return self.name
@@ -42,8 +43,8 @@ class Specialization(models.Model):
     slug = models.SlugField(max_length=100, unique=True)
     
     class Meta:
-        verbose_name = 'Специализация'
-        verbose_name_plural = 'Специализации'
+        verbose_name = _('Специализация')
+        verbose_name_plural = _('Специализации')
     
     def __str__(self):
         return self.name
@@ -58,27 +59,33 @@ class Book_Info(models.Model):
     description = models.TextField(blank=True)
     isbn = models.CharField(max_length=13, unique=True)
     publication_date = models.DateField()
-    price = models.DecimalField(max_digits=10, decimal_places=2)
     available = models.BooleanField(default=True)
-    total_copies = models.PositiveIntegerField(default=1, verbose_name='Всего экземпляров')
-    available_copies = models.PositiveIntegerField(default=1, verbose_name='Доступно экземпляров')
+    total_copies = models.PositiveIntegerField(default=1, verbose_name=_('Всего экземпляров'))
+    available_copies = models.PositiveIntegerField(default=1, verbose_name=_('Доступно экземпляров'))
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
     image = models.ImageField(upload_to='books/%Y/%m/%d', blank=True)
-    pdf_file = models.FileField(upload_to='books/pdf/%Y/%m/%d', blank=True, null=True, verbose_name='PDF файл')
-    school_type = models.ForeignKey(School_Type, on_delete=models.SET_NULL, null=True, blank=True, related_name='books', verbose_name='Тип школы')
-    specialization = models.ForeignKey(Specialization, on_delete=models.SET_NULL, null=True, blank=True, related_name='books', verbose_name='Специализация')
-    target_group = models.CharField(max_length=100, blank=True, verbose_name='Целевая группа', help_text='Например: ОДН-201, Преподаватели')
+    pdf_file = models.FileField(upload_to='books/pdf/%Y/%m/%d', blank=True, null=True, verbose_name=_('PDF файл'))
+    school_type = models.ForeignKey(School_Type, on_delete=models.SET_NULL, null=True, blank=True, related_name='books', verbose_name=_('Тип школы'))
+    specialization = models.ForeignKey(Specialization, on_delete=models.SET_NULL, null=True, blank=True, related_name='books', verbose_name=_('Специализация'))
 
     class Meta:
         ordering = ['title']
         indexes = [models.Index(fields=['id', 'slug'])]
-        verbose_name = 'Книга'
-        verbose_name_plural = 'Книги'
+        verbose_name = _('Книга')
+        verbose_name_plural = _('Книги')
     
 
     def __str__(self):
         return f"{self.title} - {self.author}"
+    
+    @property
+    def year(self):
+        return self.publication_date.year if self.publication_date else None
+
+    @property
+    def date_added(self):
+        return self.created
     
     @property
     def is_available(self):
@@ -86,21 +93,21 @@ class Book_Info(models.Model):
 
 class BookLoan(models.Model):
     STATUS_CHOICES = [
-        ('active', 'Активна'),
-        ('returned', 'Возвращена'),
-        ('overdue', 'Просрочена'),
+        ('active', _('Активна')),
+        ('returned', _('Возвращена')),
+        ('overdue', _('Просрочена')),
     ]
     
-    user = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name="Пользователь")
-    book = models.ForeignKey(Book_Info, on_delete=models.CASCADE, verbose_name="Книга")
-    loan_date = models.DateField(default=timezone.now, verbose_name="Дата выдачи")
-    due_date = models.DateField(verbose_name="Срок возврата")
-    return_date = models.DateField(null=True, blank=True, verbose_name="Дата возврата")
+    user = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name=_('Пользователь'))
+    book = models.ForeignKey(Book_Info, on_delete=models.CASCADE, verbose_name=_('Книга'))
+    loan_date = models.DateField(default=timezone.now, verbose_name=_('Дата выдачи'))
+    due_date = models.DateField(verbose_name=_('Срок возврата'))
+    return_date = models.DateField(null=True, blank=True, verbose_name=_('Дата возврата'))
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='active')
     
     class Meta:
-        verbose_name = "Выдача книги"
-        verbose_name_plural = "Выдачи книг"
+        verbose_name = _('Выдача книги')
+        verbose_name_plural = _('Выдачи книг')
     
     def __str__(self):
         return f"{self.user.username} - {self.book.title}"
@@ -114,9 +121,9 @@ class Reservation(models.Model):
     book = models.ForeignKey(Book_Info, on_delete=models.CASCADE)
     reservation_date = models.DateTimeField(auto_now_add=True)
     status = models.CharField(max_length=20, choices=[
-        ('pending', 'В ожидании'),
-        ('ready', 'Готов к выдаче'),
-        ('cancelled', 'Отменена'),
+        ('pending', _('В ожидании')),
+        ('ready', _('Готов к выдаче')),
+        ('cancelled', _('Отменена')),
     ], default='pending')
     
     class Meta:
@@ -126,32 +133,48 @@ class BookReservationJournal(models.Model):
     """
     Журнал бронирования книг для администраторов
     """
+    PERSON_TYPE_CHOICES = [
+        ('student', _('Студент')),
+        ('teacher', _('Преподаватель')),
+    ]
+
     STATUS_CHOICES = [
-        ('reserved', 'Зарезервирована'),
-        ('returned', 'Возвращена'),
-        ('expired', 'Просрочена'),
+        ('reserved', _('Зарезервирована')),
+        ('returned', _('Возвращена')),
+        ('expired', _('Просрочена')),
     ]
     
-    book = models.ForeignKey(Book_Info, on_delete=models.CASCADE, verbose_name="Книга")
-    student_name = models.CharField(max_length=150, verbose_name="Имя студента")
-    group_name = models.CharField(max_length=100, verbose_name="Группа")
-    teacher_name = models.CharField(max_length=150, blank=True, verbose_name="Имя преподавателя")
-    quantity = models.PositiveIntegerField(default=1, verbose_name="Количество")
-    reservation_datetime = models.DateTimeField(default=timezone.now, verbose_name="Дата и время бронирования")
-    expiration_date = models.DateTimeField(verbose_name="Дата и время окончания")
-    returned_date = models.DateTimeField(null=True, blank=True, verbose_name="Дата возврата")
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='reserved', verbose_name="Статус")
-    notes = models.TextField(blank=True, verbose_name="Примечания")
-    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='created_reservations', verbose_name="Создано")
+    book = models.ForeignKey(Book_Info, on_delete=models.CASCADE, verbose_name=_('Книга'))
+    person_type = models.CharField(max_length=10, choices=PERSON_TYPE_CHOICES, default='student', verbose_name=_('Тип клиента'))
+    student_name = models.CharField(max_length=150, verbose_name=_('Имя студента'))
+    group_name = models.CharField(max_length=100, verbose_name=_('Группа'))
+    teacher_name = models.CharField(max_length=150, blank=True, verbose_name=_('Имя преподавателя'))
+    quantity = models.PositiveIntegerField(default=1, verbose_name=_('Количество'))
+    reservation_datetime = models.DateTimeField(default=timezone.now, verbose_name=_('Дата и время бронирования'))
+    expiration_date = models.DateTimeField(verbose_name=_('Дата и время окончания'))
+    returned_date = models.DateTimeField(null=True, blank=True, verbose_name=_('Дата возврата'))
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='reserved', verbose_name=_('Статус'))
+    notes = models.TextField(blank=True, verbose_name=_('Примечания'))
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='created_reservations', verbose_name=_('Создано'))
     
     class Meta:
-        verbose_name = "Бронь в журнале"
-        verbose_name_plural = "Брони в журнале"
+        verbose_name = _('Бронь в журнале')
+        verbose_name_plural = _('Брони в журнале')
         ordering = ['-reservation_datetime']
     
     def __str__(self):
+        if self.person_type == 'teacher':
+            return f"{self.teacher_name} - {self.book.title} ({self.quantity} шт.)"
         return f"{self.student_name} - {self.book.title} ({self.quantity} шт.)"
     
+    def clean(self):
+        super().clean()
+        if self.person_type == 'teacher':
+            self.student_name = ''
+            self.group_name = ''
+        else:
+            self.teacher_name = ''
+
     @property
     def is_expired(self):
         return self.expiration_date < timezone.now() and self.status == 'reserved'
@@ -161,28 +184,29 @@ class Profile(models.Model):
     Модель профиля пользователя, расширяющая стандартную модель User
     """
     # Связь с пользователем (один к одному)
-    user = models.OneToOneField(User, on_delete=models.CASCADE, verbose_name="Пользователь")
+    user = models.OneToOneField(User, on_delete=models.CASCADE, verbose_name=_('Пользователь'))
     
     # Дополнительные поля для профиля
-    phone = models.CharField(max_length=20, blank=True, verbose_name="Телефон")
-    address = models.TextField(blank=True, verbose_name="Адрес")
-    birth_date = models.DateField(null=True, blank=True, verbose_name="Дата рождения")
-    student_id = models.CharField(max_length=50, blank=True, verbose_name="Студенческий билет №")
-    group_name = models.CharField(max_length=50, blank=True, verbose_name="Группа")
-    avatar = models.ImageField(upload_to='avatars/%Y/%m/%d', blank=True, null=True, verbose_name="Аватар")
+    phone = models.CharField(max_length=20, blank=True, verbose_name=_('Телефон'))
+    address = models.TextField(blank=True, verbose_name=_('Адрес'))
+    birth_date = models.DateField(null=True, blank=True, verbose_name=_('Дата рождения'))
+    student_id = models.CharField(max_length=50, blank=True, verbose_name=_('Студенческий билет №'))
+    group_name = models.CharField(max_length=50, blank=True, verbose_name=_('Группа'))
+    avatar = models.ImageField(upload_to='avatars/%Y/%m/%d', blank=True, null=True, verbose_name=_('Аватар'))
+    saved_books = models.ManyToManyField('Book_Info', blank=True, related_name='saved_by', verbose_name=_('Сохранённые книги'))
     
     # Дополнительная информация
-    bio = models.TextField(blank=True, verbose_name="О себе")
-    telegram = models.CharField(max_length=100, blank=True, verbose_name="Telegram")
-    instagram = models.CharField(max_length=100, blank=True, verbose_name="Instagram")
+    bio = models.TextField(blank=True, verbose_name=_('О себе'))
+    telegram = models.CharField(max_length=100, blank=True, verbose_name=_('Telegram'))
+    instagram = models.CharField(max_length=100, blank=True, verbose_name=_('Instagram'))
     
     # Системные поля
-    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата регистрации")
-    updated_at = models.DateTimeField(auto_now=True, verbose_name="Дата обновления")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_('Дата регистрации'))
+    updated_at = models.DateTimeField(auto_now=True, verbose_name=_('Дата обновления'))
     
     class Meta:
-        verbose_name = "Профиль пользователя"
-        verbose_name_plural = "Профили пользователей"
+        verbose_name = _('Профиль пользователя')
+        verbose_name_plural = _('Профили пользователей')
     
     def __str__(self):
         return f"Профиль пользователя {self.user.username}"

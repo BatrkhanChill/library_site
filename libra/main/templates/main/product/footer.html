@@ -1,0 +1,39 @@
+{% load static i18n %}
+<footer class="footer py-5">
+    <div class="container">
+        <div class="row gy-4">
+            <div class="col-md-4">
+                <a class="footer-brand" href="{% url 'main:main_page' %}">
+                    <img src="{% static 'images/logo.png' %}" alt="{% trans "Логотип" %}">
+                    {% trans "Библиотека УК-ЭТК" %}
+                </a>
+                <p class="medium">{% trans "Виртуальная библиотека УК-ЭТК. Учебная литература, электронные ресурсы и материалы онлайн." %}</p>
+            </div>
+            <div class="col-6 col-md-2">
+                <h6>{% trans "Разделы" %}</h6>
+                <div class="footer-links">
+                    <a href="{% url 'main:main_page' %}">{% trans "Главная" %}</a>
+                    {% if user.is_authenticated %}
+                    <a href="{% url 'main:index' %}">{% trans "Каталог" %}</a>
+                    {% else %}
+                    <a href="{% url 'login' %}">{% trans "Каталог" %}</a>
+                    {% endif %}
+                    <a href="{% url 'main:profile' %}">{% trans "Профиль" %}</a>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <h6>{% trans "Контакты" %}</h6>
+                <p class="small mb-2"><i class="bi bi-geo-alt-fill me-2"></i><a href="https://2gis.kz/ust-kamenogorsk/firm/70000001020617575?m=82.600985%2C49.979649%2F16.98, ул. Бажова, 68" target="_blank">Усть-Каменогорск, ул. Бажова, 68</a></p>
+                <p class="small mb-2"><i class="bi bi-telephone-fill me-2"></i>50-25-00</p>
+                <p class="small mb-0"><i class="bi bi-envelope-fill me-2"></i>ukkaf@rambler.ru</p>
+            </div>
+            <div class="col-md-3">
+                <h6>{% trans "О библиотеке" %}</h6>
+                <p class="medium">{% trans "Поиск нужных книг, отслеживание историй и доступ к учебным ресурсам в одном месте." %}</p>
+            </div>
+        </div>
+        <div class="border-top border-white-10 mt-4 pt-3 text-center small">
+            &copy; 2026. {% trans "Усть-Каменогорский колледж экономики и техники. Все права защищены." %}
+        </div>
+    </div>
+</footer>

@@ -15,14 +15,33 @@ from .forms import UserEditForm, ProfileEditForm
 
 # Create your views here.
 
-def main_page(request, category_slug=None):
-    return render(request, 'main/main_page.html')
+def main_page(request):
+    categories = Category.objects.all()[:6]
+    new_books = Book_Info.objects.filter(available=True).order_by('-created')[:6]
+    stats = {
+        'books_count': Book_Info.objects.filter(available=True).count(),
+        'pdf_count': Book_Info.objects.filter(available=True, pdf_file__isnull=False).count(),
+        'authors_count': Book_Info.objects.filter(available=True).values('author').distinct().count(),
+        'available_count': Book_Info.objects.filter(available=True, available_copies__gt=0).count(),
+    }
+    return render(request, 'main/main_page.html', {
+        'categories': categories,
+        'new_books': new_books,
+        'stats': stats,
+    })
 
+@login_required(login_url='login')
 def index(request, category_slug=None):
     categories = Category.objects.all()
     school_types = School_Type.objects.all()
     specializations = Specialization.objects.all()
     books = Book_Info.objects.filter(available=True)
+
+    saved_books_ids = []
+    if request.user.is_authenticated:
+        profile = getattr(request.user, 'profile', None)
+        if profile is not None:
+            saved_books_ids = list(profile.saved_books.values_list('id', flat=True))
 
     category = None
     query = request.GET.get('q')
@@ -31,7 +50,6 @@ def index(request, category_slug=None):
     # Get filter parameters
     selected_school_types = request.GET.getlist('school_type')
     selected_specializations = request.GET.getlist('specialization')
-    selected_target_groups = request.GET.getlist('target_group')
 
     if category_slug:
         category = get_object_or_404(Category, slug=category_slug)
@@ -52,13 +70,6 @@ def index(request, category_slug=None):
     if selected_specializations:
         books = books.filter(specialization__id__in=selected_specializations)
     
-    if selected_target_groups:
-        books = books.filter(target_group__in=selected_target_groups)
-    
-    # Get all target groups that have books
-    all_target_groups = Book_Info.objects.filter(available=True).values_list('target_group', flat=True).distinct()
-    all_target_groups = [group for group in all_target_groups if group]  # Remove empty strings
-    
     # Sorting
     if sort_by == 'author':
         books = books.order_by('author', 'title')
@@ -72,13 +83,12 @@ def index(request, category_slug=None):
         'categories': categories,
         'school_types': school_types,
         'specializations': specializations,
-        'all_target_groups': all_target_groups,
         'books': books,
         'query': query,
         'sort_by': sort_by,
         'selected_school_types': [int(x) for x in selected_school_types],
         'selected_specializations': [int(x) for x in selected_specializations],
-        'selected_target_groups': selected_target_groups,
+        'saved_books_ids': saved_books_ids,
     })
 
 def book_detail(request, book_id):
@@ -105,13 +115,40 @@ def book_detail(request, book_id):
     except Exception:
         checked_out = 0
 
+    is_saved = False
+    if request.user.is_authenticated:
+        profile = getattr(request.user, 'profile', None)
+        if profile is not None:
+            is_saved = profile.saved_books.filter(id=book.id).exists()
+
     return render(request, 'main/book_detail.html', {
         'book': book,
         'is_reserved': is_reserved,
         'user_loans': user_loans,
         'similar_books': similar_books,
         'checked_out': checked_out,
+        'is_saved': is_saved,
     })
+
+@login_required(login_url='login')
+def toggle_saved_book(request, book_id):
+    book = get_object_or_404(Book_Info, id=book_id)
+    profile = getattr(request.user, 'profile', None)
+    if profile is None:
+        messages.error(request, 'Профиль не найден.')
+        return redirect('main:book_detail', book_id=book_id)
+
+    if profile.saved_books.filter(id=book.id).exists():
+        profile.saved_books.remove(book)
+        messages.success(request, f'Книга "{book.title}" удалена из сохранённых.')
+    else:
+        profile.saved_books.add(book)
+        messages.success(request, f'Книга "{book.title}" сохранена.')
+
+    referrer = request.META.get('HTTP_REFERER')
+    if referrer:
+        return redirect(referrer)
+    return redirect('main:book_detail', book_id=book_id)
 
 @login_required
 def profile(request):
@@ -124,40 +161,13 @@ def profile(request):
         from .models import Profile
         profile = Profile.objects.create(user=user)
     
-    # Получаем активные выдачи
-    active_loans = BookLoan.objects.filter(
-        user=user, 
-        status='active'
-    ).select_related('book')
-    
-    # Получаем просроченные выдачи
-    overdue_loans = [loan for loan in active_loans if loan.is_overdue]
-    
-    # Получаем активные бронирования
-    reservations = Reservation.objects.filter(
-        user=user, 
-        status='pending'
-    ).select_related('book')
-    
-    # Получаем историю возвращённых книг (последние 10)
-    loan_history = BookLoan.objects.filter(
-        user=user,
-        status='returned'
-    ).select_related('book').order_by('-return_date')[:10]
-    
-    # Получаем статистику
-    total_loans = BookLoan.objects.filter(user=user).count()
-    total_reservations = Reservation.objects.filter(user=user).count()
+    # Получаем сохранённые книги
+    saved_books = profile.saved_books.all()
     
     context = {
         'user': user,
         'profile': profile,
-        'active_loans': active_loans,
-        'overdue_loans': overdue_loans,
-        'reservations': reservations,
-        'loan_history': loan_history,
-        'total_loans': total_loans,
-        'total_reservations': total_reservations,
+        'saved_books': saved_books,
     }
     
     return render(request, 'main/profile.html', context)  # ← БЕЗ ПАПКИ profile

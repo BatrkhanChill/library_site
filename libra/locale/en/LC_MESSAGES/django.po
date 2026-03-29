@@ -1,0 +1,262 @@
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-01-01 00:00+0000\n"
+"PO-Revision-Date: 2026-01-01 00:00+0000\n"
+"Last-Translator: AI <noreply@example.com>\n"
+"Language-Team: English\n"
+"Language: en\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "PDF файлов"
+msgstr "PDF files"
+
+msgid "Автору"
+msgstr "By author"
+
+msgid "Авторы"
+msgstr "Authors"
+
+msgid "Админ-панель"
+msgstr "Admin panel"
+
+msgid "Библиотека УК-ЭТК"
+msgstr "UK-ETK Library"
+
+msgid "Библиотека колледжа"
+msgstr "College library"
+
+msgid ""
+"Виртуальная библиотека УК-ЭТК. Учебная литература, электронные ресурсы и "
+"материалы онлайн."
+msgstr ""
+"UK-ETK virtual library. Educational literature, electronic resources, and "
+"online materials."
+
+msgid "Войдите, чтобы сохранить"
+msgstr "Log in to save"
+
+msgid "Войти"
+msgstr "Log in"
+
+msgid "Всего экземпляров:"
+msgstr "Total copies:"
+
+msgid "Вход - Библиотека Колледжа"
+msgstr "Login - College Library"
+
+msgid "Выберите направление обучения"
+msgstr "Choose a study direction"
+
+msgid "Выйти"
+msgstr "Log out"
+
+msgid "Главная"
+msgstr "Home"
+
+msgid "Главная - Библиотека колледжа"
+msgstr "Home - College Library"
+
+msgid "Году издания"
+msgstr "By year"
+
+msgid "Дата добавления"
+msgstr "Date added"
+
+msgid "Добро пожаловать"
+msgstr "Welcome"
+
+msgid "Доступно сейчас"
+msgstr "Available now"
+
+msgid "Доступно сейчас:"
+msgstr "Available now:"
+
+msgid "Доступно экземпляров:"
+msgstr "Available copies:"
+
+msgid "Журнал бронирования"
+msgstr "Reservation journal"
+
+msgid "Зарегистрируйтесь"
+msgstr "Register"
+
+msgid "Издательство"
+msgstr "Publisher"
+
+msgid "Имя пользователя"
+msgstr "Username"
+
+msgid "Информация о доступности"
+msgstr "Availability information"
+
+msgid ""
+"Ищите книги, учебные пособия и электронные ресурсы для учебы и научной "
+"работы. Всё в одном месте — быстро, удобно и бесплатно."
+msgstr ""
+"Search for books, textbooks, and electronic resources for study and "
+"research. Everything in one place — fast, convenient, and free."
+
+msgid "Каталог"
+msgstr "Catalog"
+
+msgid "Каталог книг"
+msgstr "Book catalog"
+
+msgid ""
+"Каталог учебной литературы для рабочих, экономических и технических "
+"специальностей."
+msgstr ""
+"Catalog of educational literature for vocational, economic, and technical "
+"specialties."
+
+msgid "Книг в каталоге"
+msgstr "Books in catalog"
+
+msgid "Книги и материалы по данной категории."
+msgstr "Books and materials in this category."
+
+msgid "Книги не найдены."
+msgstr "No books found."
+
+msgid "Сайт колледжа"
+msgstr "College site"
+
+msgid "Логотип"
+msgstr "Logo"
+
+msgid "Лучшие книги месяца"
+msgstr "Best books of the month"
+
+msgid "Мой кабинет"
+msgstr "My profile"
+
+msgid "Мой профиль"
+msgstr "My profile"
+
+msgid "На руках у читателей:"
+msgstr "Checked out by readers:"
+
+msgid "Названию"
+msgstr "Title"
+
+msgid "Найти"
+msgstr "Find"
+
+msgid "Нет аккаунта?"
+msgstr "No account?"
+
+msgid "Новинка"
+msgstr "New"
+
+msgid "Новинки каталога"
+msgstr "Catalog highlights"
+
+msgid "О библиотеке"
+msgstr "About the library"
+
+msgid "Открыть"
+msgstr "Open"
+
+msgid "Очистить"
+msgstr "Clear"
+
+msgid "Пароль"
+msgstr "Password"
+
+msgid "Подтвердите пароль"
+msgstr "Confirm password"
+
+msgid "Поиск книг..."
+msgstr "Search books..."
+
+msgid "Поиск книги"
+msgstr "Search book"
+
+msgid "Поиск книги, автора или темы..."
+msgstr "Search book, author, or topic..."
+
+msgid ""
+"Поиск нужных книг, отслеживание историй и доступ к учебным ресурсам в одном "
+"месте."
+msgstr ""
+"Find the books you need, track histories, and access study resources in one "
+"place."
+
+msgid "Последние поступления"
+msgstr "Latest arrivals"
+
+msgid "Похожие книги"
+msgstr "Similar books"
+
+msgid "Практическое руководство по IT"
+msgstr "Practical IT guide"
+
+msgid "Применить фильтры"
+msgstr "Apply filters"
+
+msgid "Профиль"
+msgstr "Profile"
+
+msgid "Разделы"
+msgstr "Sections"
+
+msgid "Регистрация"
+msgstr "Register"
+
+msgid "Регистрация - Библиотека Колледжа"
+msgstr "Registration - College Library"
+
+msgid "Свежие книги, которые уже доступны для чтения и загрузки."
+msgstr "Fresh books already available for reading and downloading."
+
+msgid "Скачать PDF"
+msgstr "Download PDF"
+
+msgid "Современные методики преподавания"
+msgstr "Modern teaching methods"
+
+msgid "Создать аккаунт"
+msgstr "Create account"
+
+msgid "Сортировать по"
+msgstr "Sort by"
+
+msgid "Специализация"
+msgstr "Specialization"
+
+msgid "Специальности"
+msgstr "Specialties"
+
+msgid "Список категорий будет доступен позже."
+msgstr "The list of categories will be available later."
+
+msgid "Тип школы"
+msgstr "School type"
+
+msgid "Уже есть аккаунт?"
+msgstr "Already have an account?"
+
+msgid "Усть-Каменогорск, ул. Бажова, 68"
+msgstr "Ust-Kamenogorsk, Bazhova St., 68"
+
+msgid "Усть-Каменогорский колледж экономики и техники. Все права защищены."
+msgstr ""
+"Ust-Kamenogorsk College of Economics and Technology. All rights reserved."
+
+msgid "Учебник по математике"
+msgstr "Mathematics textbook"
+
+msgid "Целевая группа"
+msgstr "Target group"
+
+msgid "Электронная библиотека колледжа экономики и техники"
+msgstr "College of Economics and Technology electronic library"
+
+msgid "из"
+msgstr "of"
+

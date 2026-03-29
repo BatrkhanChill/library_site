@@ -1,55 +1,65 @@
 {% extends 'main/base.html' %}
-{% load static %}
+{% load static i18n %}
 
-{% block title %}Регистрация - Библиотека Колледжа{% endblock %}
+{% block title %}{% trans "Регистрация - Библиотека Колледжа" %}{% endblock %}
 
 {% block content %}
-<div class="container">
-    <div class="row justify-content-center">
-        <div class="col-md-6">
-            <div class="card shadow">
-                <div class="card-header bg-primary text-white">
-                    <h3 class="card-title mb-0"><i class="bi bi-person-plus"></i> Регистрация</h3>
+<section class="auth-page bg-light">
+    <div class="container py-5">
+        <div class="row g-5 justify-content-center align-items-center">
+            <div class="col-lg-5 order-lg-2">
+                <div class="auth-hero rounded-4 shadow-lg p-5 bg-white">
+                    <span class="eyebrow">Создайте аккаунт</span>
+                    <h1>Присоединяйтесь к библиотеке</h1>
+                    <p class="auth-text">Регистрация займёт всего пару минут. После входа вы сможете бронировать книги и просматривать историю выдач.</p>
+                    <div class="auth-hero-features mt-4">
+                        <div><i class="bi bi-check-circle-fill"></i> Личный кабинет студента</div>
+                        <div><i class="bi bi-check-circle-fill"></i> История бронирований</div>
+                        <div><i class="bi bi-check-circle-fill"></i> Доступ к учебным материалам</div>
+                    </div>
                 </div>
-                <div class="card-body">
-                    <form method="post">
-                        {% csrf_token %}
-                        {% if form.non_field_errors %}
-                            <div class="alert alert-danger">{{ form.non_field_errors }}</div>
-                        {% endif %}
-                        <div class="mb-3">
-                            <label for="id_username" class="form-label">Имя пользователя</label>
-                            {{ form.username }}
-                            {% if form.username.errors %}
-                                <div class="text-danger small">{{ form.username.errors }}</div>
+            </div>
+            <div class="col-lg-5 order-lg-1">
+                <div class="card auth-card rounded-4 shadow-sm overflow-hidden">
+                    <div class="card-body p-5">
+                        <h2 class="mb-4">{% trans "Регистрация" %}</h2>
+                        <form method="post" novalidate>
+                            {% csrf_token %}
+                            {% if form.non_field_errors %}
+                                <div class="alert alert-danger">{{ form.non_field_errors }}</div>
                             {% endif %}
-                        </div>
-                        <div class="mb-3">
-                            <label for="id_password1" class="form-label">Пароль</label>
-                            {{ form.password1 }}
-                            {% if form.password1.errors %}
-                                <div class="text-danger small">{{ form.password1.errors }}</div>
-                            {% endif %}
-                        </div>
-                        <div class="mb-3">
-                            <label for="id_password2" class="form-label">Подтвердите пароль</label>
-                            {{ form.password2 }}
-                            {% if form.password2.errors %}
-                                <div class="text-danger small">{{ form.password2.errors }}</div>
-                            {% endif %}
-                        </div>
-                        <div class="d-grid">
-                            <button type="submit" class="btn btn-primary">
-                                <i class="bi bi-person-plus"></i> Создать аккаунт
-                            </button>
-                        </div>
-                    </form>
-                </div>
-                <div class="card-footer text-center">
-                    <small class="text-muted">Уже есть аккаунт? <a href="{% url 'login' %}">Войти</a></small>
+                            <div class="mb-4">
+                                <label for="id_username" class="form-label">{% trans "Имя пользователя" %}</label>
+                                {{ form.username }}
+                                {% if form.username.errors %}
+                                    <div class="text-danger small">{{ form.username.errors }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="mb-4">
+                                <label for="id_password1" class="form-label">{% trans "Пароль" %}</label>
+                                {{ form.password1 }}
+                                {% if form.password1.errors %}
+                                    <div class="text-danger small">{{ form.password1.errors }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="mb-4">
+                                <label for="id_password2" class="form-label">{% trans "Подтвердите пароль" %}</label>
+                                {{ form.password2 }}
+                                {% if form.password2.errors %}
+                                    <div class="text-danger small">{{ form.password2.errors }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-primary btn-lg">{% trans "Создать аккаунт" %}</button>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="card-footer bg-white text-center py-4">
+                        <small class="text-muted">{% trans "Уже есть аккаунт?" %} <a href="{% url 'login' %}">{% trans "Войти" %}</a></small>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
-</div>
+</section>
 {% endblock %}

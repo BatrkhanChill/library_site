@@ -4,7 +4,8 @@
 {% block title %}Журнал бронирования книг - Администратор{% endblock %}
 
 {% block content %}
-<div class="container-fluid mt-4">
+<div class="container-xl mt-4 py-5" style="padding-left: 1.5rem; padding-right: 1.5rem;">
+    <div class="admin-page p-4 rounded-4 shadow-sm" style="padding-left: 2rem; padding-right: 2rem;">
     <!-- Hidden URL for AJAX -->
     <div id="return-book-url" data-url="{% url 'main:return_book' 0 %}"></div>
     
@@ -65,7 +66,7 @@
             </div>
         </div>
 
-        <div class="row">
+        <div class="row g-4">
             <!-- Filters -->
             <div class="col-md-3">
                 <div class="card mb-4">
@@ -412,6 +413,7 @@
         </div>
 
     {% endif %}
+</div>
 </div>
 
 <script>

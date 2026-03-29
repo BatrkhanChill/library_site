@@ -2,15 +2,16 @@
 from django import forms
 from django.contrib.auth.models import User
 from django.contrib.auth.forms import UserChangeForm
+from django.utils.translation import gettext_lazy as _
 from .models import Profile
 
 class UserEditForm(forms.ModelForm):
     """
     Форма для редактирования данных пользователя
     """
-    first_name = forms.CharField(max_length=150, required=False, label="Имя")
-    last_name = forms.CharField(max_length=150, required=False, label="Фамилия")
-    email = forms.EmailField(required=True, label="Email")
+    first_name = forms.CharField(max_length=150, required=False, label=_('Имя'))
+    last_name = forms.CharField(max_length=150, required=False, label=_('Фамилия'))
+    email = forms.EmailField(required=True, label=_('Email'))
     
     class Meta:
         model = User
@@ -42,15 +43,15 @@ class ProfileEditForm(forms.ModelForm):
             'instagram': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '@username'}),
         }
         labels = {
-            'phone': 'Телефон',
-            'address': 'Адрес',
-            'birth_date': 'Дата рождения',
-            'student_id': 'Номер студенческого билета',
-            'group_name': 'Группа',
-            'bio': 'О себе',
-            'telegram': 'Telegram',
-            'instagram': 'Instagram',
-            'avatar': 'Фото профиля',
+            'phone': _('Телефон'),
+            'address': _('Адрес'),
+            'birth_date': _('Дата рождения'),
+            'student_id': _('Номер студенческого билета'),
+            'group_name': _('Группа'),
+            'bio': _('О себе'),
+            'telegram': _('Telegram'),
+            'instagram': _('Instagram'),
+            'avatar': _('Фото профиля'),
         }
     
     def __init__(self, *args, **kwargs):

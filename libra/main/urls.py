@@ -11,6 +11,7 @@ urlpatterns = [
     path('profile/history/', views.loan_history, name='loan_history'),
     path('book/<int:book_id>/', views.book_detail, name='book_detail'),
     path('book/<int:book_id>/reserve/', views.reserve_book, name='reserve_book'),
+    path('book/<int:book_id>/save/', views.toggle_saved_book, name='toggle_saved_book'),
     path('category/<slug:category_slug>/', views.index, name='book_list_by_category'),
     path('reservation/<int:reservation_id>/cancel/', views.cancel_reservation, name='cancel_reservation'),
     path('admin-journal/', views.reservation_journal, name='reservation_journal'),

@@ -1,5 +1,5 @@
 {% extends 'main/base.html' %}
-{% load static %}
+{% load static i18n %}
 
 {% block title %}{{ book.title }} - Библиотека Колледжа{% endblock %}
 
@@ -23,12 +23,23 @@
                     <div class="d-grid gap-2">
                         {% if book.pdf_file %}
                         <a href="{{ book.pdf_file.url }}" class="btn btn-info btn-lg" download>
-                            <i class="bi bi-download"></i> Скачать PDF
+                            <i class="bi bi-download"></i> {% trans "Скачать PDF" %}
+                        </a>
+                        {% endif %}
+
+                        {% if user.is_authenticated %}
+                        <a href="{% url 'main:toggle_saved_book' book.id %}" class="btn {% if is_saved %}btn-outline-danger{% else %}btn-primary{% endif %} btn-lg">
+                            <i class="bi bi-bookmark{% if is_saved %}-dash{% else %}-plus{% endif %}"></i>
+                            {% if is_saved %}Удалить из сохранённых{% else %}Сохранить книгу{% endif %}
+                        </a>
+                        {% else %}
+                        <a href="{% url 'login' %}" class="btn btn-outline-primary btn-lg">
+                            <i class="bi bi-box-arrow-in-right"></i> {% trans "Войдите, чтобы сохранить" %}
                         </a>
                         {% endif %}
 
                         <div class="alert alert-secondary mb-0" role="alert">
-                            <strong>Доступно экземпляров:</strong> {{ book.available_copies }} из {{ book.total_copies }}
+                            <strong>{% trans "Доступно экземпляров:" %}</strong> {{ book.available_copies }} {% trans "из" %} {{ book.total_copies }}
                         </div>
                     </div>
                 </div>
@@ -37,23 +48,23 @@
             <!-- Информация о доступности -->
             <div class="card">
                 <div class="card-header">
-                    <h5><i class="bi bi-info-circle"></i> Информация о доступности</h5>
+                    <h5><i class="bi bi-info-circle"></i> {% trans "Информация о доступности" %}</h5>
                 </div>
                 <div class="card-body">
                     <ul class="list-group list-group-flush">
                         <li class="list-group-item d-flex justify-content-between">
-                            <span>Всего экземпляров:</span>
+                            <span>{% trans "Всего экземпляров:" %}</span>
                             <span class="badge bg-secondary">{{ book.total_copies }}</span>
                         </li>
                         <li class="list-group-item d-flex justify-content-between">
-                            <span>Доступно сейчас:</span>
+                            <span>{% trans "Доступно сейчас:" %}</span>
                             <span class="badge {% if book.available_copies > 0 %}bg-success{% else %}bg-danger{% endif %}">
                                 {{ book.available_copies }}
                             </span>
                         </li>
                         <li class="list-group-item">
                             <small class="text-muted">
-                                На руках у читателей: {{ checked_out }}
+                                {% trans "На руках у читателей:" %} {{ checked_out }}
                             </small>
                         </li>
                         {# location field not present in model; omitted #}
@@ -68,8 +79,8 @@
                     <h1 class="card-title">{{ book.title }}</h1>
                     
                     <div class="mb-3">
-                        <span class="badge bg-primary">{{ book.get_category_display }}</span>
-                        <span class="badge bg-secondary ms-1">{{ book.year }} год</span>
+                        <span class="badge bg-primary">{{ book.category.name }}</span>
+                        <span class="badge bg-secondary ms-1">{% if book.year %}{{ book.year }}{% else %}—{% endif %} год</span>
                         <span class="badge bg-info ms-1">ISBN: {{ book.isbn }}</span>
                     </div>
                     
@@ -84,18 +95,18 @@
                     
                     <div class="row">
                         <div class="col-md-6">
-                            <h5><i class="bi bi-building"></i> Издательство</h5>
-                            <p>{{ book.publisher }}</p>
+                            <h5><i class="bi bi-bookmark"></i> {% trans "Категория" %}</h5>
+                            <p>{{ book.category.name }}</p>
                         </div>
                         <div class="col-md-6">
-                            <h5><i class="bi bi-calendar-event"></i> Дата добавления</h5>
+                            <h5><i class="bi bi-calendar-event"></i> {% trans "Дата добавления" %}</h5>
                             <p>{{ book.date_added|date:"d.m.Y" }}</p>
                         </div>
                     </div>
                 </div>
                 
                 <div class="card-footer">
-                    <h5><i class="bi bi-bookmarks"></i> Похожие книги</h5>
+                    <h5><i class="bi bi-bookmarks"></i> {% trans "Похожие книги" %}</h5>
                     <div class="row mt-3">
                         {% for similar_book in similar_books %}
                         <div class="col-md-4 mb-3">
