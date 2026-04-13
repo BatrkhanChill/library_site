@@ -3,7 +3,7 @@ from django.contrib import admin
 from django.utils.html import format_html
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
-from .models import Category, Book_Info, School_Type, Specialization, BookReservationJournal, Reservation
+from .models import Category, Book_Info, School_Type, Specialization, BookReservationJournal, Reservation, Student
 
 # Register your models here.
 
@@ -24,12 +24,12 @@ class SpecializationAdmin(admin.ModelAdmin):
 
 @admin.register(Book_Info)
 class BookInfoAdmin(admin.ModelAdmin):
-    list_filter = ['available', 'created', 'updated', 'category', 'school_type', 'specialization']
+    list_filter = ['available', 'created', 'updated', 'category', 'school_type', 'specialization', 'language', 'subject_area']
     list_editable = ['available']
     prepopulated_fields = {'slug': ('title',)}
     search_fields = ['title', 'author', 'isbn']
-    list_display = ['title', 'author', 'available', 'school_type', 'specialization', 'pdf_file']
-    fields = ['title', 'slug', 'author', 'description', 'isbn', 'publication_date', 'available', 'total_copies', 'available_copies', 'category', 'school_type', 'specialization', 'image', 'pdf_file']
+    list_display = ['title', 'author', 'available', 'language', 'school_type', 'specialization', 'subject_area', 'pdf_file']
+    fields = ['title', 'slug', 'author', 'description', 'isbn', 'publication_date', 'available', 'total_copies', 'available_copies', 'category', 'school_type', 'specialization', 'language', 'subject_area', 'image', 'pdf_file']
 
 
 class BookReservationJournalForm(forms.ModelForm):
@@ -44,6 +44,13 @@ class BookReservationJournalForm(forms.ModelForm):
         model = BookReservationJournal
         fields = '__all__'
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Requiredness depends on person_type; enforce in clean().
+        self.fields['student_name'].required = False
+        self.fields['group_name'].required = False
+        self.fields['teacher_name'].required = False
+
     def clean(self):
         cleaned_data = super().clean()
         person_type = cleaned_data.get('person_type')
@@ -54,6 +61,7 @@ class BookReservationJournalForm(forms.ModelForm):
             if not cleaned_data.get('teacher_name'):
                 self.add_error('teacher_name', _('Введите имя преподавателя'))
         else:
+            cleaned_data['teacher_name'] = ''
             if not cleaned_data.get('student_name'):
                 self.add_error('student_name', _('Введите имя студента'))
             if not cleaned_data.get('group_name'):
@@ -191,6 +199,12 @@ class BookReservationJournalAdmin(admin.ModelAdmin):
         if not change:  # Only set created_by on new entries
             obj.created_by = request.user
         super().save_model(request, obj, form, change)
+
+
+@admin.register(Student)
+class StudentAdmin(admin.ModelAdmin):
+    list_display = ['student_id', 'full_name', 'group_name', 'course', 'year', 'specialization', 'language', 'homeroom_teacher']
+    search_fields = ['student_id', 'full_name', 'group_name', 'course', 'year', 'specialization', 'language', 'homeroom_teacher']
 
 
 @admin.register(Reservation)

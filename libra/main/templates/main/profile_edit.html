@@ -1,7 +1,7 @@
 {% extends 'main/base.html' %}
-{% load static %}
+{% load static i18n %}
 
-{% block title %}Редактирование профиля{% endblock %}
+{% block title %}{% trans "Редактирование профиля" %}{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -65,8 +65,8 @@
 <div class="container">
     <div class="edit-form-container">
         <div class="form-header">
-            <h2 class="mb-0"><i class="bi bi-pencil-square"></i> Редактирование профиля</h2>
-            <p class="mb-0 mt-2">Заполните информацию о себе, чтобы другие пользователи могли узнать вас лучше</p>
+            <h2 class="mb-0"><i class="bi bi-pencil-square"></i> {% trans "Редактирование профиля" %}</h2>
+            <p class="mb-0 mt-2">{% trans "Заполните информацию о себе, чтобы другие пользователи могли узнать вас лучше" %}</p>
         </div>
 
         <form method="post" enctype="multipart/form-data">
@@ -74,11 +74,11 @@
             
             <!-- Аватар -->
             <div class="form-section">
-                <h4><i class="bi bi-camera"></i> Фото профиля</h4>
+                <h4><i class="bi bi-camera"></i> {% trans "Фото профиля" %}</h4>
                 {% if profile.avatar %}
                 <div class="current-avatar">
-                    <img src="{{ profile.avatar.url }}" alt="Текущий аватар">
-                    <p class="text-muted mt-2">Текущее фото</p>
+                    <img src="{{ profile.avatar.url }}" alt="{% trans 'Текущий аватар' %}">
+                    <p class="text-muted mt-2">{% trans "Текущее фото" %}</p>
                 </div>
                 {% endif %}
                 <div class="mb-3">
@@ -97,7 +97,7 @@
                 <div class="col-md-6">
                     <!-- Основная информация -->
                     <div class="form-section">
-                        <h4><i class="bi bi-person-badge"></i> Основная информация</h4>
+                        <h4><i class="bi bi-person-badge"></i> {% trans "Основная информация" %}</h4>
                         
                         <div class="mb-3">
                             {{ user_form.first_name.label_tag }}
@@ -144,7 +144,7 @@
                 <div class="col-md-6">
                     <!-- Учебная информация -->
                     <div class="form-section">
-                        <h4><i class="bi bi-mortarboard"></i> Учебная информация</h4>
+                        <h4><i class="bi bi-mortarboard"></i> {% trans "Учебная информация" %}</h4>
                         
                         <div class="mb-3">
                             {{ profile_form.group_name.label_tag }}
@@ -173,7 +173,7 @@
                     
                     <!-- Социальные сети -->
                     <div class="form-section">
-                        <h4><i class="bi bi-share"></i> Социальные сети</h4>
+                        <h4><i class="bi bi-share"></i> {% trans "Социальные сети" %}</h4>
                         
                         <div class="mb-3">
                             {{ profile_form.telegram.label_tag }}
@@ -196,7 +196,7 @@
             
             <!-- О себе -->
             <div class="form-section">
-                <h4><i class="bi bi-file-text"></i> О себе</h4>
+                <h4><i class="bi bi-file-text"></i> {% trans "О себе" %}</h4>
                 <div class="mb-3">
                     {{ profile_form.bio.label_tag }}
                     {{ profile_form.bio }}
@@ -208,10 +208,10 @@
             
             <div class="text-center mt-4">
                 <button type="submit" class="btn btn-save btn-lg">
-                    <i class="bi bi-check-lg"></i> Сохранить изменения
+                    <i class="bi bi-check-lg"></i> {% trans "Сохранить изменения" %}
                 </button>
                 <a href="{% url 'main:profile' %}" class="btn btn-outline-secondary btn-lg ms-2">
-                    <i class="bi bi-x-lg"></i> Отмена
+                    <i class="bi bi-x-lg"></i> {% trans "Отмена" %}
                 </a>
             </div>
         </form>

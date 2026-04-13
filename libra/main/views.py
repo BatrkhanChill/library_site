@@ -1,13 +1,20 @@
+from datetime import timedelta
+
 from django.shortcuts import render, get_object_or_404, redirect
 from django.http import JsonResponse
 from .models import Category, Book_Info, BookLoan, Reservation, School_Type, Specialization, BookReservationJournal
+from django.db import transaction
 from django.db.models import Q, F, Sum
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth import login as auth_login, logout as auth_logout
-from django.contrib.auth.forms import UserCreationForm
-from django.contrib.auth.views import LogoutView
+from django.contrib.auth.views import LogoutView, LoginView
 from django.contrib import messages 
 from django.utils import timezone
+from django.utils.dateparse import parse_datetime
+from django.utils.translation import gettext as _
+from django.core.mail import send_mail
+from django.conf import settings
+from .forms import UserEditForm, ProfileEditForm, UserRegisterForm
 from django.core.paginator import Paginator
 from .forms import UserEditForm, ProfileEditForm
 
@@ -50,11 +57,19 @@ def index(request, category_slug=None):
     # Get filter parameters
     selected_school_types = request.GET.getlist('school_type')
     selected_specializations = request.GET.getlist('specialization')
+    selected_categories = request.GET.getlist('category')
+    selected_subject_areas = request.GET.getlist('subject_area')
+    selected_language = request.GET.get('language', '')
 
     if category_slug:
         category = get_object_or_404(Category, slug=category_slug)
-        books = books.filter(category=category)
-    
+        if selected_categories:
+            books = books.filter(category__id__in=selected_categories)
+        else:
+            books = books.filter(category=category)
+    elif selected_categories:
+        books = books.filter(category__id__in=selected_categories)
+
     if query:
         books = books.filter(
             Q(title__icontains=query) |
@@ -69,6 +84,12 @@ def index(request, category_slug=None):
     
     if selected_specializations:
         books = books.filter(specialization__id__in=selected_specializations)
+
+    if selected_subject_areas:
+        books = books.filter(subject_area__in=selected_subject_areas)
+
+    if selected_language:
+        books = books.filter(language=selected_language)
     
     # Sorting
     if sort_by == 'author':
@@ -77,6 +98,8 @@ def index(request, category_slug=None):
         books = books.order_by('-publication_date', 'title')
     else:
         books = books.order_by('title')
+
+    selected_category_ids = [int(x) for x in selected_categories] if selected_categories else ([category.id] if category else [])
     
     return render(request, 'main/product/list.html', {
         'category': category,
@@ -88,6 +111,9 @@ def index(request, category_slug=None):
         'sort_by': sort_by,
         'selected_school_types': [int(x) for x in selected_school_types],
         'selected_specializations': [int(x) for x in selected_specializations],
+        'selected_subject_areas': selected_subject_areas,
+        'selected_language': selected_language,
+        'selected_category_ids': selected_category_ids,
         'saved_books_ids': saved_books_ids,
     })
 
@@ -135,15 +161,15 @@ def toggle_saved_book(request, book_id):
     book = get_object_or_404(Book_Info, id=book_id)
     profile = getattr(request.user, 'profile', None)
     if profile is None:
-        messages.error(request, 'Профиль не найден.')
+        messages.error(request, _('Профиль не найден.'))
         return redirect('main:book_detail', book_id=book_id)
 
     if profile.saved_books.filter(id=book.id).exists():
         profile.saved_books.remove(book)
-        messages.success(request, f'Книга "{book.title}" удалена из сохранённых.')
+        messages.success(request, _('Книга "%(title)s" удалена из сохранённых.') % {'title': book.title})
     else:
         profile.saved_books.add(book)
-        messages.success(request, f'Книга "{book.title}" сохранена.')
+        messages.success(request, _('Книга "%(title)s" сохранена.') % {'title': book.title})
 
     referrer = request.META.get('HTTP_REFERER')
     if referrer:
@@ -186,10 +212,10 @@ def profile_edit(request):
         if user_form.is_valid() and profile_form.is_valid():
             user_form.save()
             profile_form.save()
-            messages.success(request, 'Ваш профиль успешно обновлён!')
+            messages.success(request, _('Ваш профиль успешно обновлён!'))
             return redirect('main:profile')
         else:
-            messages.error(request, 'Пожалуйста, исправьте ошибки в форме.')
+            messages.error(request, _('Пожалуйста, исправьте ошибки в форме.'))
     else:
         user_form = UserEditForm(instance=user)
         profile_form = ProfileEditForm(instance=profile)
@@ -216,9 +242,9 @@ def cancel_reservation(request, reservation_id):
             reservation.book.available_copies += 1
             reservation.book.save()
         reservation.save()
-        messages.success(request, f'Бронирование книги "{reservation.book.title}" отменено.')
+        messages.success(request, _('Бронирование книги "%(title)s" отменено.') % {'title': reservation.book.title})
     else:
-        messages.error(request, 'Невозможно отменить это бронирование.')
+        messages.error(request, _('Невозможно отменить это бронирование.'))
     
     return redirect('main:profile')
 
@@ -242,36 +268,53 @@ def reserve_book(request, book_id):
     book = get_object_or_404(Book_Info, id=book_id)
 
     if book.available_copies <= 0:
-        messages.error(request, 'Книга временно недоступна')
+        messages.error(request, _('Книга временно недоступна'))
         return redirect('main:book_detail', book_id=book_id)
 
     existing_reservation = Reservation.objects.filter(user=request.user, book=book).first()
     if existing_reservation is not None:
         if existing_reservation.status in ['pending', 'ready']:
-            messages.warning(request, 'Вы уже забронировали эту книгу')
+            messages.warning(request, _('Вы уже забронировали эту книгу'))
             return redirect('main:book_detail', book_id=book_id)
 
         # Если предыдущая бронь просрочена или отменена, обновляем её
         existing_reservation.status = 'pending'
         existing_reservation.reservation_date = timezone.now()
         existing_reservation.save()
-        messages.success(request, f'Книга "{book.title}" снова забронирована!')
+        messages.success(request, _('Книга "%(title)s" снова забронирована!') % {'title': book.title})
         return redirect('main:book_detail', book_id=book_id)
 
     try:
         if book.available_copies <= 0:
-            messages.error(request, 'Книга временно недоступна')
+            messages.error(request, _('Книга временно недоступна'))
             return redirect('main:book_detail', book_id=book_id)
 
         Reservation.objects.create(user=request.user, book=book)
         book.available_copies = max(book.available_copies - 1, 0)
         book.save()
-        messages.success(request, f'Книга "{book.title}" забронирована!')
+        messages.success(request, _('Книга "%(title)s" забронирована!') % {'title': book.title})
     except Exception as e:
-        messages.error(request, 'Не удалось создать бронь. Попробуйте позже.')
+        messages.error(request, _('Не удалось создать бронь. Попробуйте позже.'))
         # Опционально: логировать e здесь
 
     return redirect('main:book_detail', book_id=book_id)
+
+
+class CustomLoginView(LoginView):
+    template_name = 'registration/login.html'
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        user = self.request.user
+        if user and user.email:
+            send_mail(
+                'Успешный вход в библиотеку',
+                f'Здравствуйте, {user.username}!\n\nВы успешно вошли в систему College Library.\nЕсли это были не вы, пожалуйста, сбросьте пароль через страницу восстановления.',
+                settings.DEFAULT_FROM_EMAIL,
+                [user.email],
+                fail_silently=True,
+            )
+        return response
 
 
 def register(request):
@@ -280,16 +323,24 @@ def register(request):
         return redirect('main:index')
 
     if request.method == 'POST':
-        form = UserCreationForm(request.POST)
+        form = UserRegisterForm(request.POST)
         if form.is_valid():
             user = form.save()
+            if user.email:
+                send_mail(
+                    'Добро пожаловать в библиотеку',
+                    f'Здравствуйте, {user.username}!\n\nСпасибо за регистрацию в College Library. Ваш логин: {user.username}.\n\nЕсли вы забудете пароль, вы можете восстановить его через эту почту.',
+                    settings.DEFAULT_FROM_EMAIL,
+                    [user.email],
+                    fail_silently=True,
+                )
             auth_login(request, user)
-            messages.success(request, 'Регистрация прошла успешно. Вы вошли в систему.')
+            messages.success(request, _('Регистрация прошла успешно. Вы вошли в систему.'))
             return redirect('main:index')
         else:
-            messages.error(request, 'Пожалуйста, исправьте ошибки в форме регистрации.')
+            messages.error(request, _('Пожалуйста, исправьте ошибки в форме регистрации.'))
     else:
-        form = UserCreationForm()
+        form = UserRegisterForm()
 
     return render(request, 'registration/register.html', {'form': form})
 
@@ -297,71 +348,90 @@ def register(request):
 def logout_and_register(request):
     """Log out then redirect to registration to avoid 405 and show register page."""
     auth_logout(request)
-    messages.info(request, 'Вы вышли из системы. Пожалуйста, зарегистрируйтесь или войдите снова.')
+    messages.info(request, _('Вы вышли из системы. Пожалуйста, зарегистрируйтесь или войдите снова.'))
     return redirect('main:register')
 
 
 def create_reservation(request):
     """Admin-only view to create new book reservations."""
     if not request.user.is_staff:
-        messages.error(request, 'У вас нет доступа к этой функции.')
+        messages.error(request, _('У вас нет доступа к этой функции.'))
         return redirect('main:index')
-    
+
     if request.method == 'POST':
-        student_name = request.POST.get('student_name')
-        group_name = request.POST.get('group_name')
-        teacher_name = request.POST.get('teacher_name', '')
+        student_name = (request.POST.get('student_name') or '').strip()
+        group_name = (request.POST.get('group_name') or '').strip()
+        teacher_name = (request.POST.get('teacher_name') or '').strip()
         quantity = request.POST.get('quantity')
         book_id = request.POST.get('book')
-        reservation_datetime_str = request.POST.get('reservation_datetime')
-        expiration_date_str = request.POST.get('expiration_date')
-        notes = request.POST.get('notes', '')
-        
+        reservation_datetime_str = (request.POST.get('reservation_datetime') or '').strip()
+        expiration_date_str = (request.POST.get('expiration_date') or '').strip()
+        notes = (request.POST.get('notes') or '').strip()
+
         try:
-            book = Book_Info.objects.get(id=book_id)
             quantity = int(quantity)
-            
-            # Validate quantity against available copies
             if quantity <= 0:
-                messages.error(request, 'Количество должно быть больше 0.')
+                messages.error(request, _('Количество должно быть больше 0.'))
                 return redirect('main:reservation_journal')
-            
-            if quantity > book.available_copies:
-                messages.error(request, f'Недостаточно доступных копий. Доступно: {book.available_copies}, запрошено: {quantity}.')
+
+            if not student_name:
+                messages.error(request, _('Укажите имя студента.'))
                 return redirect('main:reservation_journal')
-            
-            # Reserve copies
-            book.available_copies = max(book.available_copies - quantity, 0)
-            book.save()
-            
-            # Parse datetime strings
-            from datetime import datetime
-            reservation_datetime = datetime.fromisoformat(reservation_datetime_str.replace('T', ' '))
-            expiration_date = datetime.fromisoformat(expiration_date_str.replace('T', ' '))
-            
-            # Create the reservation
-            BookReservationJournal.objects.create(
-                book=book,
-                student_name=student_name,
-                group_name=group_name,
-                teacher_name=teacher_name,
-                quantity=quantity,
-                reservation_datetime=reservation_datetime,
-                expiration_date=expiration_date,
-                notes=notes,
-                created_by=request.user
-            )
-            
-            messages.success(request, f'Бронь для "{student_name}" на книгу "{book.title}" ({quantity} шт.) создана успешно!')
+
+            if not group_name:
+                messages.error(request, _('Укажите группу.'))
+                return redirect('main:reservation_journal')
+
+            default_reservation_datetime = timezone.localtime(timezone.now()).replace(second=0, microsecond=0)
+            default_expiration_datetime = default_reservation_datetime + timedelta(days=7)
+
+            reservation_datetime = parse_datetime(reservation_datetime_str) if reservation_datetime_str else default_reservation_datetime
+            expiration_date = parse_datetime(expiration_date_str) if expiration_date_str else default_expiration_datetime
+
+            if reservation_datetime is None or expiration_date is None:
+                raise ValueError(_('Некорректный формат даты и времени.'))
+
+            if timezone.is_naive(reservation_datetime):
+                reservation_datetime = timezone.make_aware(reservation_datetime, timezone.get_current_timezone())
+            if timezone.is_naive(expiration_date):
+                expiration_date = timezone.make_aware(expiration_date, timezone.get_current_timezone())
+
+            if expiration_date <= reservation_datetime:
+                messages.error(request, _('Дата окончания должна быть позже даты бронирования.'))
+                return redirect('main:reservation_journal')
+
+            with transaction.atomic():
+                book = Book_Info.objects.select_for_update().get(id=book_id)
+
+                if quantity > book.available_copies:
+                    messages.error(request, _('Недостаточно доступных копий. Доступно: %(available)s, запрошено: %(requested)s.') % {'available': book.available_copies, 'requested': quantity})
+                    return redirect('main:reservation_journal')
+
+                BookReservationJournal.objects.create(
+                    book=book,
+                    student_name=student_name,
+                    group_name=group_name,
+                    teacher_name=teacher_name,
+                    quantity=quantity,
+                    reservation_datetime=reservation_datetime,
+                    expiration_date=expiration_date,
+                    notes=notes,
+                    created_by=request.user
+                )
+
+                book.available_copies = max(book.available_copies - quantity, 0)
+                book.save(update_fields=['available_copies'])
+
+            messages.success(request, _('Бронь для "%(student)s" на книгу "%(title)s" (%(quantity)s шт.) создана успешно!') % {'student': student_name, 'title': book.title, 'quantity': quantity})
             return redirect('main:reservation_journal')
-            
+
         except Book_Info.DoesNotExist:
-            messages.error(request, 'Выбранная книга не найдена.')
+            messages.error(request, _('Выбранная книга не найдена.'))
         except ValueError as e:
-            messages.error(request, f'Ошибка в формате данных: {e}')
+            messages.error(request, _('Ошибка в формате данных: %(error)s') % {'error': e})
         except Exception as e:
-            messages.error(request, f'Ошибка при создании брони: {e}')
-    
+            messages.error(request, _('Ошибка при создании брони: %(error)s') % {'error': e})
+
     return redirect('main:reservation_journal')
 
 
@@ -418,6 +488,9 @@ def reservation_journal(request):
     total_books = Book_Info.objects.count()
     total_available_copies = Book_Info.objects.aggregate(Sum('available_copies'))['available_copies__sum'] or 0
     
+    default_reservation_datetime = timezone.localtime(timezone.now()).replace(second=0, microsecond=0)
+    default_expiration_datetime = default_reservation_datetime + timedelta(days=7)
+
     context = {
         'page_obj': page_obj,
         'paginator': paginator,
@@ -432,6 +505,8 @@ def reservation_journal(request):
         'returned_reservations': returned_reservations,
         'total_books': total_books,
         'total_available_copies': total_available_copies,
+        'reservation_default_value': default_reservation_datetime.strftime('%Y-%m-%dT%H:%M'),
+        'expiration_default_value': default_expiration_datetime.strftime('%Y-%m-%dT%H:%M'),
     }
     
     return render(request, 'main/admin_reservation_journal.html', context)

@@ -69,6 +69,29 @@ class Book_Info(models.Model):
     school_type = models.ForeignKey(School_Type, on_delete=models.SET_NULL, null=True, blank=True, related_name='books', verbose_name=_('Тип школы'))
     specialization = models.ForeignKey(Specialization, on_delete=models.SET_NULL, null=True, blank=True, related_name='books', verbose_name=_('Специализация'))
 
+    LANGUAGE_CHOICES = [
+        ('ru', _('Русский')),
+        ('kk', _('Қазақша')),
+        ('en', _('English')),
+    ]
+    language = models.CharField(
+        max_length=2,
+        choices=LANGUAGE_CHOICES,
+        default='ru',
+        verbose_name=_('Язык'),
+    )
+
+    SUBJECT_AREA_CHOICES = [
+        ('humanitarian', _('Гуманитарное')),
+        ('technical', _('Техническое')),
+    ]
+    subject_area = models.CharField(
+        max_length=20,
+        choices=SUBJECT_AREA_CHOICES,
+        blank=True,
+        verbose_name=_('Направление'),
+    )
+
     class Meta:
         ordering = ['title']
         indexes = [models.Index(fields=['id', 'slug'])]
@@ -179,6 +202,86 @@ class BookReservationJournal(models.Model):
     def is_expired(self):
         return self.expiration_date < timezone.now() and self.status == 'reserved'
 
+class Student(models.Model):
+    """Школьный студент, доступный для регистрации по ID."""
+    STUDY_PROGRAM_MAP = {
+        'ТП': _('Разработчик программного обеспечения'),
+        'РП': _('Разработчик программного обеспечения'),
+        # Добавьте сюда остальные коды и названия программ
+    }
+
+    LANGUAGE_CHOICES = [
+        ('ru', _('Русский')),
+        ('kk', _('Қазақша')),
+    ]
+
+    student_id = models.CharField(max_length=50, unique=True, verbose_name=_('Номер студенческого билета'))
+    full_name = models.CharField(max_length=200, verbose_name=_('ФИО'))
+    group_name = models.CharField(max_length=100, blank=True, verbose_name=_('Группа'))
+    course = models.CharField(max_length=100, blank=True, verbose_name=_('Курс'))
+    year = models.PositiveIntegerField(null=True, blank=True, verbose_name=_('Год'))
+    specialization = models.CharField(max_length=200, blank=True, verbose_name=_('Специальность'))
+    language = models.CharField(max_length=10, choices=LANGUAGE_CHOICES, blank=True, verbose_name=_('Язык'))
+    homeroom_teacher = models.CharField(max_length=200, blank=True, verbose_name=_('Руководитель'))
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_('Дата добавления'))
+
+    class Meta:
+        verbose_name = _('Студент')
+        verbose_name_plural = _('Студенты')
+        ordering = ['student_id']
+
+    def __str__(self):
+        return f"{self.student_id} — {self.full_name}"
+
+    @staticmethod
+    def parse_group_info(group_name):
+        if not group_name:
+            return {}
+
+        group = str(group_name).strip().upper().replace(' ', '')
+        result = {
+            'year': None,
+            'course': '',
+            'specialization': '',
+            'language': '',
+        }
+
+        # Пример: 22ТП-41р
+        import re
+        pattern = re.compile(r'^(?P<year>\d{2})(?P<program>[А-ЯA-Z]{1,4})[-–]?(?P<course>\d)(?P<group>\d)?(?P<lang>[РRKК])?$', re.IGNORECASE)
+        match = pattern.match(group)
+        if match:
+            year = match.group('year')
+            result['year'] = 2000 + int(year)
+            program_code = match.group('program').upper()
+            result['specialization'] = Student.STUDY_PROGRAM_MAP.get(program_code, program_code)
+            result['course'] = match.group('course')
+            lang = match.group('lang')
+            if lang:
+                if lang.upper() in ('Р', 'P'):
+                    result['language'] = 'ru'
+                elif lang.upper() in ('К', 'K'):
+                    result['language'] = 'kk'
+        else:
+            # Попытка выделить номер курса по разделителю
+            import re as _re
+            year_match = _re.match(r'^(\d{2})', group)
+            if year_match:
+                result['year'] = 2000 + int(year_match.group(1))
+            lang_match = _re.search(r'([РRKК])$', group)
+            if lang_match:
+                lang = lang_match.group(1).upper()
+                result['language'] = 'ru' if lang in ('Р', 'P') else 'kk'
+            course_match = _re.search(r'-(\d)', group)
+            if course_match:
+                result['course'] = course_match.group(1)
+            # Специализация как код из середины
+            program_match = _re.match(r'^\d{2}([А-ЯA-Z]{1,4})', group)
+            if program_match:
+                result['specialization'] = Student.STUDY_PROGRAM_MAP.get(program_match.group(1).upper(), program_match.group(1).upper())
+
+        return result
+
 class Profile(models.Model):
     """
     Модель профиля пользователя, расширяющая стандартную модель User
@@ -230,4 +333,6 @@ def create_user_profile(sender, instance, created, **kwargs):
 @receiver(post_save, sender=User)
 def save_user_profile(sender, instance, **kwargs):
     """Сигнал: автоматически сохраняет профиль при сохранении пользователя"""
-    instance.profile.save()
+    # Some legacy users may not have a related profile row.
+    profile, _ = Profile.objects.get_or_create(user=instance)
+    profile.save()
