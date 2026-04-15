@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: libraryy
+    env: python
+    buildCommand: ./build.sh
+    startCommand: python -m gunicorn --chdir libra libra.wsgi:application
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.7
+      - key: DEBUG
+        value: False
+      - key: USE_POSTGRES
+        value: True
