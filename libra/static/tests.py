@@ -4,7 +4,7 @@ from django.contrib.auth.models import User
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 
-from .models import BookReservationJournal, Book_Info, Category
+from main.models import BookReservationJournal, Book_Info, Category
 
 
 @override_settings(ALLOWED_HOSTS=['testserver', '127.0.0.1', 'localhost'])

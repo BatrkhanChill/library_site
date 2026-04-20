@@ -16,6 +16,10 @@ urlpatterns = [
     path('reservation/<int:reservation_id>/cancel/', views.cancel_reservation, name='cancel_reservation'),
     path('admin-journal/', views.reservation_journal, name='reservation_journal'),
     path('admin-journal/create/', views.create_reservation, name='create_reservation'),
+    path('admin-journal/autocomplete/students/', views.student_autocomplete, name='student_autocomplete'),
+    path('admin-journal/autocomplete/books/', views.book_autocomplete, name='book_autocomplete'),
     path('return-book/<int:reservation_id>/', views.return_book, name='return_book'),
     path('accounts/register/', views.register, name='register'),
+    path('accounts/register/verify/', views.verify_registration, name='verify_registration'),
+    path('accounts/register/resend-code/', views.resend_verification_code, name='resend_verification_code'),
 ]

@@ -2,11 +2,12 @@ from datetime import timedelta
 
 from django.shortcuts import render, get_object_or_404, redirect
 from django.http import JsonResponse
-from .models import Category, Book_Info, BookLoan, Reservation, School_Type, Specialization, BookReservationJournal
+from .models import Category, Book_Info, BookLoan, Reservation, School_Type, Specialization, BookReservationJournal, AuthCode, Student
 from django.db import transaction
 from django.db.models import Q, F, Sum
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth import login as auth_login, logout as auth_logout
+from django.contrib.auth.models import User
 from django.contrib.auth.views import LogoutView, LoginView
 from django.contrib import messages 
 from django.utils import timezone
@@ -14,13 +15,60 @@ from django.utils.dateparse import parse_datetime
 from django.utils.translation import gettext as _
 from django.core.mail import send_mail
 from django.conf import settings
-from .forms import UserEditForm, ProfileEditForm, UserRegisterForm
+from .forms import (
+    UserEditForm,
+    ProfileEditForm,
+    UserRegisterForm,
+    VerificationCodeForm,
+    PasswordResetRequestForm,
+    SetPasswordByCodeForm,
+)
 from django.core.paginator import Paginator
-from .forms import UserEditForm, ProfileEditForm
 
 
 
 # Create your views here.
+
+
+def _send_auth_code_email(user, auth_code):
+    if auth_code.purpose == AuthCode.PURPOSE_REGISTRATION:
+        subject = 'Код подтверждения регистрации'
+        message = (
+            f'Здравствуйте, {user.username}!\n\n'
+            f'Ваш код подтверждения: {auth_code.code}\n'
+            'Введите его на сайте, чтобы завершить регистрацию.\n'
+            'Код действует 10 минут.'
+        )
+    else:
+        subject = 'Код для сброса пароля'
+        message = (
+            f'Здравствуйте, {user.username}!\n\n'
+            f'Ваш код для смены пароля: {auth_code.code}\n'
+            'Введите его на сайте, чтобы задать новый пароль.\n'
+            'Код действует 10 минут.'
+        )
+
+    send_mail(
+        subject,
+        message,
+        settings.DEFAULT_FROM_EMAIL,
+        [user.email],
+        fail_silently=True,
+    )
+
+
+def _get_active_code(user, purpose, code_value):
+    auth_code = AuthCode.objects.filter(
+        user=user,
+        purpose=purpose,
+        code=code_value,
+        is_used=False,
+    ).order_by('-created_at').first()
+
+    if auth_code is None or auth_code.is_expired:
+        return None
+    return auth_code
+
 
 def main_page(request):
     categories = Category.objects.all()[:6]
@@ -189,11 +237,13 @@ def profile(request):
     
     # Получаем сохранённые книги
     saved_books = profile.saved_books.all()
-    
+    student_record = profile.sync_with_student_data() if profile.student_id else None
+
     context = {
         'user': user,
         'profile': profile,
         'saved_books': saved_books,
+        'student_record': student_record,
     }
     
     return render(request, 'main/profile.html', context)  # ← БЕЗ ПАПКИ profile
@@ -211,7 +261,9 @@ def profile_edit(request):
         
         if user_form.is_valid() and profile_form.is_valid():
             user_form.save()
-            profile_form.save()
+            profile = profile_form.save()
+            if profile.student_id:
+                profile.sync_with_student_data()
             messages.success(request, _('Ваш профиль успешно обновлён!'))
             return redirect('main:profile')
         else:
@@ -318,7 +370,7 @@ class CustomLoginView(LoginView):
 
 
 def register(request):
-    """Registration page."""
+    """Registration page with email verification code."""
     if request.user.is_authenticated:
         return redirect('main:index')
 
@@ -326,23 +378,118 @@ def register(request):
         form = UserRegisterForm(request.POST)
         if form.is_valid():
             user = form.save()
-            if user.email:
-                send_mail(
-                    'Добро пожаловать в библиотеку',
-                    f'Здравствуйте, {user.username}!\n\nСпасибо за регистрацию в College Library. Ваш логин: {user.username}.\n\nЕсли вы забудете пароль, вы можете восстановить его через эту почту.',
-                    settings.DEFAULT_FROM_EMAIL,
-                    [user.email],
-                    fail_silently=True,
-                )
-            auth_login(request, user)
-            messages.success(request, _('Регистрация прошла успешно. Вы вошли в систему.'))
-            return redirect('main:index')
-        else:
-            messages.error(request, _('Пожалуйста, исправьте ошибки в форме регистрации.'))
+            auth_code = AuthCode.issue_code(user, AuthCode.PURPOSE_REGISTRATION)
+            _send_auth_code_email(user, auth_code)
+            request.session['pending_registration_user_id'] = user.id
+            messages.info(request, _('Мы отправили код подтверждения на вашу почту.'))
+            return redirect('main:verify_registration')
+        messages.error(request, _('Пожалуйста, исправьте ошибки в форме регистрации.'))
     else:
         form = UserRegisterForm()
 
     return render(request, 'registration/register.html', {'form': form})
+
+
+def verify_registration(request):
+    user_id = request.session.get('pending_registration_user_id')
+    user = User.objects.filter(id=user_id).first() if user_id else None
+
+    if user is None:
+        messages.info(request, _('Сначала зарегистрируйтесь, чтобы подтвердить аккаунт.'))
+        return redirect('main:register')
+
+    if request.method == 'POST':
+        form = VerificationCodeForm(request.POST)
+        if form.is_valid():
+            auth_code = _get_active_code(user, AuthCode.PURPOSE_REGISTRATION, form.cleaned_data['code'])
+            if auth_code is None:
+                form.add_error('code', _('Код неверный или срок его действия истёк.'))
+            else:
+                auth_code.is_used = True
+                auth_code.save(update_fields=['is_used'])
+                user.is_active = True
+                user.save(update_fields=['is_active'])
+                profile = getattr(user, 'profile', None)
+                if profile and profile.student_id:
+                    profile.sync_with_student_data()
+                request.session.pop('pending_registration_user_id', None)
+                auth_login(request, user)
+                messages.success(request, _('Аккаунт подтверждён. Добро пожаловать!'))
+                return redirect('main:index')
+    else:
+        form = VerificationCodeForm()
+
+    return render(request, 'registration/verify_registration.html', {'form': form, 'email': user.email})
+
+
+def resend_verification_code(request):
+    user_id = request.session.get('pending_registration_user_id')
+    if not user_id:
+        messages.info(request, _('Нет ожидающей регистрации для повторной отправки кода.'))
+        return redirect('main:register')
+
+    from django.contrib.auth.models import User
+    user = User.objects.filter(id=user_id).first()
+    if user is None:
+        request.session.pop('pending_registration_user_id', None)
+        return redirect('main:register')
+
+    auth_code = AuthCode.issue_code(user, AuthCode.PURPOSE_REGISTRATION)
+    _send_auth_code_email(user, auth_code)
+    messages.info(request, _('Новый код подтверждения отправлен на вашу почту.'))
+    return redirect('main:verify_registration')
+
+
+def password_reset_request(request):
+    if request.method == 'POST':
+        form = PasswordResetRequestForm(request.POST)
+        if form.is_valid():
+            email = form.cleaned_data['email']
+            user = User.objects.filter(email__iexact=email).first()
+            if user is None:
+                form.add_error('email', _('Пользователь с таким email не найден.'))
+            else:
+                auth_code = AuthCode.issue_code(user, AuthCode.PURPOSE_PASSWORD_RESET)
+                _send_auth_code_email(user, auth_code)
+                request.session['password_reset_user_id'] = user.id
+                messages.info(request, _('Код для смены пароля отправлен на вашу почту.'))
+                return redirect('password_reset_verify_code')
+    else:
+        form = PasswordResetRequestForm()
+
+    return render(request, 'registration/password_reset_form.html', {'form': form})
+
+
+def password_reset_verify_code(request):
+    user_id = request.session.get('password_reset_user_id')
+    if not user_id:
+        messages.info(request, _('Сначала запросите код для сброса пароля.'))
+        return redirect('password_reset')
+
+    from django.contrib.auth.models import User
+    user = User.objects.filter(id=user_id).first()
+    if user is None:
+        request.session.pop('password_reset_user_id', None)
+        return redirect('password_reset')
+
+    if request.method == 'POST':
+        form = SetPasswordByCodeForm(request.POST, user=user)
+        if form.is_valid():
+            auth_code = _get_active_code(user, AuthCode.PURPOSE_PASSWORD_RESET, form.cleaned_data['code'])
+            if auth_code is None:
+                form.add_error('code', _('Код неверный или срок его действия истёк.'))
+            else:
+                auth_code.is_used = True
+                auth_code.save(update_fields=['is_used'])
+                user.set_password(form.cleaned_data['new_password1'])
+                user.save(update_fields=['password'])
+                request.session.pop('password_reset_user_id', None)
+                messages.success(request, _('Пароль успешно изменён. Теперь вы можете войти.'))
+                return redirect('login')
+    else:
+        form = SetPasswordByCodeForm(user=user)
+
+    return render(request, 'registration/password_reset_verify_code.html', {'form': form, 'email': user.email})
 
 
 def logout_and_register(request):
@@ -484,7 +631,7 @@ def reservation_journal(request):
     # Statistics
     total_reservations = BookReservationJournal.objects.count()
     active_reservations = BookReservationJournal.objects.filter(status='reserved').count()
-    returned_reservations = BookReservationJournal.objects.filter(status='returned').count()
+    returned_reservations = BookReservationJournal.objects.filter(status__in=['returned', 'returned_late']).count()
     total_books = Book_Info.objects.count()
     total_available_copies = Book_Info.objects.aggregate(Sum('available_copies'))['available_copies__sum'] or 0
     
@@ -513,34 +660,87 @@ def reservation_journal(request):
 
 
 @user_passes_test(is_admin)
+def student_autocomplete(request):
+    query = (request.GET.get('q') or '').strip()
+    results = []
+
+    if query:
+        students = Student.objects.filter(full_name__icontains=query).order_by('full_name')[:10]
+        results = [
+            {
+                'value': student.full_name,
+                'label': f'{student.full_name} — {student.group_name or "Без группы"} (ID {student.student_id})',
+                'group_name': student.group_name or '',
+                'student_id': student.student_id,
+            }
+            for student in students
+        ]
+
+    return JsonResponse({'results': results})
+
+
+@user_passes_test(is_admin)
+def book_autocomplete(request):
+    query = (request.GET.get('q') or '').strip()
+    results = []
+
+    if query:
+        books = Book_Info.objects.filter(
+            Q(title__icontains=query) | Q(author__icontains=query)
+        ).order_by('title')[:10]
+        results = [
+            {
+                'id': book.id,
+                'value': book.title,
+                'label': f'{book.title} — {book.author} (доступно: {book.available_copies})',
+                'author': book.author,
+                'available_copies': book.available_copies,
+            }
+            for book in books
+        ]
+
+    return JsonResponse({'results': results})
+
+
+@user_passes_test(is_admin)
 def return_book(request, reservation_id):
     """AJAX view to mark a book reservation as returned."""
     if request.method != 'POST':
         return JsonResponse({'success': False, 'error': 'Метод не разрешен.'})
-    
+
     try:
         reservation = BookReservationJournal.objects.get(id=reservation_id)
-        
-        if reservation.status == 'returned':
-            return JsonResponse({'success': False, 'error': 'Книга уже отмечена как возвращенная.'})
-        
-        # Mark as returned
-        reservation.status = 'returned'
-        reservation.returned_date = timezone.now()
-        reservation.save()
 
-        # Return reserved copies back to general availability
-        if reservation.book.available_copies + reservation.quantity <= reservation.book.total_copies:
-            reservation.book.available_copies += reservation.quantity
-            reservation.book.save()
-        
-        # Format returned date for display
+        if reservation.status in ['returned', 'returned_late']:
+            return JsonResponse({'success': False, 'error': 'Книга уже отмечена как возвращенная.'})
+
+        payload = {}
+        try:
+            import json
+            payload = json.loads(request.body.decode('utf-8') or '{}')
+        except Exception:
+            payload = {}
+
+        is_late_return = bool(payload.get('mark_overdue')) or reservation.status == 'expired' or reservation.is_expired
+
+        reservation.status = 'returned_late' if is_late_return else 'returned'
+        reservation.returned_date = timezone.now()
+        reservation.save(update_fields=['status', 'returned_date'])
+
+        reservation.book.available_copies = min(
+            reservation.book.available_copies + reservation.quantity,
+            reservation.book.total_copies,
+        )
+        reservation.book.save(update_fields=['available_copies'])
+
         returned_date = reservation.returned_date.strftime('%d.%m.%Y %H:%M')
-        
+
         return JsonResponse({
             'success': True,
             'message': 'Книга отмечена как возвращенная.',
-            'returned_date': returned_date
+            'returned_date': returned_date,
+            'status': reservation.status,
+            'status_label': 'Возвращена, но просрочена' if reservation.status == 'returned_late' else 'Возвращена',
         })
         
     except BookReservationJournal.DoesNotExist:

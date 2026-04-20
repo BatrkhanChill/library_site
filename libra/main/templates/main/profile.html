@@ -139,7 +139,7 @@
                 <p class="mb-0"><i class="bi bi-mortarboard"></i> {{ profile.group_name }}</p>
                 {% endif %}
                 {% if profile.student_id %}
-                <p><i class="bi bi-credit-card"></i> {% trans "Студенческий билет:" %} {{ profile.student_id }}</p>
+                <p><i class="bi bi-credit-card"></i> {% trans "ID:" %} {{ profile.student_id }}</p>
                 {% endif %}
             </div>
             <div class="col-md-3 text-center text-md-end">
@@ -195,10 +195,22 @@
                         <hr>
                         <div class="info-label">{% trans "Группа" %}</div>
                         <div class="info-value">{{ profile.group_name|default:not_specified_f }}</div>
-                        
-                        <div class="info-label">{% trans "Студенческий билет" %}</div>
+
+                        <div class="info-label">{% trans "ID" %}</div>
                         <div class="info-value">{{ profile.student_id|default:not_specified_m }}</div>
-                        
+
+                        <div class="info-label">{% trans "Курс" %}</div>
+                        <div class="info-value">{{ student_record.course|default:not_specified_m }}</div>
+
+                        <div class="info-label">{% trans "Специальность" %}</div>
+                        <div class="info-value">{{ student_record.specialization|default:not_specified_f }}</div>
+
+                        <div class="info-label">{% trans "Куратор / преподаватель" %}</div>
+                        <div class="info-value">{{ student_record.homeroom_teacher|default:not_specified_m }}</div>
+
+                        <div class="info-label">{% trans "Язык обучения" %}</div>
+                        <div class="info-value">{{ student_record.get_language_display|default:not_specified_m }}</div>
+
                         <div class="info-label">{% trans "Адрес" %}</div>
                         <div class="info-value">{{ profile.address|default:not_specified_m|linebreaks }}</div>
                     </div>

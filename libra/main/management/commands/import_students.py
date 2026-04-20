@@ -90,7 +90,12 @@ class Command(BaseCommand):
         skipped = 0
 
         for _, row in df.iterrows():
-            student_id = _value_to_text(row.get(student_id_column))
+            raw_student_id = _value_to_text(row.get(student_id_column))
+            try:
+                student_id = Student.normalize_student_id(raw_student_id)
+            except Exception:
+                skipped += 1
+                continue
             full_name = _value_to_text(row.get(full_name_column))
             group_name = _value_to_text(row.get(group_column)) if group_column else ''
             course = _value_to_text(row.get(course_column)) if course_column else ''

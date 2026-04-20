@@ -66,10 +66,14 @@ body.site-body {
 }
 
 .site-header,
-.main-shell,
 .footer {
     position: relative;
     z-index: 1;
+}
+
+.main-shell {
+    position: relative;
+    z-index: auto;
 }
 
 a {
@@ -766,6 +770,7 @@ button,
     background: transparent !important;
     border: none !important;
     box-shadow: none !important;
+    backdrop-filter: none !important;
 }
 
 .catalog-toolbar {

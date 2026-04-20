@@ -1,8 +1,13 @@
+from datetime import timedelta
+import random
+
 from django.db import models
 from django.urls import reverse
 from django.contrib.auth.models import User
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
+from django.core.exceptions import ValidationError
+from django.core.validators import RegexValidator
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 
@@ -164,6 +169,7 @@ class BookReservationJournal(models.Model):
     STATUS_CHOICES = [
         ('reserved', _('Зарезервирована')),
         ('returned', _('Возвращена')),
+        ('returned_late', _('Возвращена с просрочкой')),
         ('expired', _('Просрочена')),
     ]
     
@@ -215,7 +221,12 @@ class Student(models.Model):
         ('kk', _('Қазақша')),
     ]
 
-    student_id = models.CharField(max_length=50, unique=True, verbose_name=_('Номер студенческого билета'))
+    student_id = models.CharField(
+        max_length=4,
+        unique=True,
+        verbose_name=_('ID'),
+        validators=[RegexValidator(r'^\d{4}$', _('ID должен состоять из 4 цифр.'))],
+    )
     full_name = models.CharField(max_length=200, verbose_name=_('ФИО'))
     group_name = models.CharField(max_length=100, blank=True, verbose_name=_('Группа'))
     course = models.CharField(max_length=100, blank=True, verbose_name=_('Курс'))
@@ -232,6 +243,31 @@ class Student(models.Model):
 
     def __str__(self):
         return f"{self.student_id} — {self.full_name}"
+
+    @staticmethod
+    def normalize_student_id(value):
+        raw_value = '' if value is None else str(value).strip()
+        digits = ''.join(ch for ch in raw_value if ch.isdigit())
+        if not digits:
+            raise ValidationError(_('ID должен содержать только цифры.'))
+        if len(digits) > 4:
+            raise ValidationError(_('ID должен состоять из 4 цифр.'))
+        return digits.zfill(4)
+
+    @classmethod
+    def next_student_id(cls):
+        last_student = cls.objects.exclude(student_id='').order_by('-student_id').first()
+        next_number = int(last_student.student_id) + 1 if last_student else 1
+        if next_number > 9999:
+            raise ValidationError(_('Свободные 4-значные ID закончились.'))
+        return f"{next_number:04d}"
+
+    def save(self, *args, **kwargs):
+        if self.student_id:
+            self.student_id = self.normalize_student_id(self.student_id)
+        else:
+            self.student_id = self.next_student_id()
+        super().save(*args, **kwargs)
 
     @staticmethod
     def parse_group_info(group_name):
@@ -282,6 +318,44 @@ class Student(models.Model):
 
         return result
 
+class AuthCode(models.Model):
+    PURPOSE_REGISTRATION = 'registration'
+    PURPOSE_PASSWORD_RESET = 'password_reset'
+    PURPOSE_CHOICES = [
+        (PURPOSE_REGISTRATION, _('Подтверждение регистрации')),
+        (PURPOSE_PASSWORD_RESET, _('Сброс пароля')),
+    ]
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='auth_codes', verbose_name=_('Пользователь'))
+    purpose = models.CharField(max_length=30, choices=PURPOSE_CHOICES, verbose_name=_('Назначение'))
+    code = models.CharField(max_length=6, verbose_name=_('Код'))
+    expires_at = models.DateTimeField(verbose_name=_('Действителен до'))
+    is_used = models.BooleanField(default=False, verbose_name=_('Использован'))
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_('Создан'))
+
+    class Meta:
+        verbose_name = _('Код подтверждения')
+        verbose_name_plural = _('Коды подтверждения')
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.user.username} — {self.purpose}"
+
+    @property
+    def is_expired(self):
+        return timezone.now() > self.expires_at
+
+    @classmethod
+    def issue_code(cls, user, purpose, lifetime_minutes=10):
+        cls.objects.filter(user=user, purpose=purpose, is_used=False).update(is_used=True)
+        return cls.objects.create(
+            user=user,
+            purpose=purpose,
+            code=f"{random.randint(0, 999999):06d}",
+            expires_at=timezone.now() + timedelta(minutes=lifetime_minutes),
+        )
+
+
 class Profile(models.Model):
     """
     Модель профиля пользователя, расширяющая стандартную модель User
@@ -293,7 +367,12 @@ class Profile(models.Model):
     phone = models.CharField(max_length=20, blank=True, verbose_name=_('Телефон'))
     address = models.TextField(blank=True, verbose_name=_('Адрес'))
     birth_date = models.DateField(null=True, blank=True, verbose_name=_('Дата рождения'))
-    student_id = models.CharField(max_length=50, blank=True, verbose_name=_('Студенческий билет №'))
+    student_id = models.CharField(
+        max_length=4,
+        blank=True,
+        verbose_name=_('ID'),
+        validators=[RegexValidator(r'^\d{4}$', _('ID должен состоять из 4 цифр.'))],
+    )
     group_name = models.CharField(max_length=50, blank=True, verbose_name=_('Группа'))
     avatar = models.ImageField(upload_to='avatars/%Y/%m/%d', blank=True, null=True, verbose_name=_('Аватар'))
     saved_books = models.ManyToManyField('Book_Info', blank=True, related_name='saved_by', verbose_name=_('Сохранённые книги'))
@@ -316,10 +395,38 @@ class Profile(models.Model):
     
     def get_absolute_url(self):
         return reverse('main:profile')
-    
+
+    def sync_with_student_data(self):
+        student = self.student_record
+        if not student:
+            return None
+
+        self.student_id = student.student_id
+        if student.group_name:
+            self.group_name = student.group_name
+        self.save(update_fields=['student_id', 'group_name'])
+
+        full_name = (student.full_name or '').strip().split()
+        if full_name:
+            self.user.last_name = full_name[0]
+            if len(full_name) > 1:
+                self.user.first_name = full_name[1]
+            self.user.save(update_fields=['first_name', 'last_name'])
+
+        return student
+
+    @property
+    def student_record(self):
+        if not self.student_id:
+            return None
+        return Student.objects.filter(student_id=self.student_id).first()
+
     @property
     def full_name(self):
         """Возвращает полное имя пользователя"""
+        student = self.student_record
+        if student and student.full_name:
+            return student.full_name
         if self.user.first_name and self.user.last_name:
             return f"{self.user.last_name} {self.user.first_name}"
         return self.user.username

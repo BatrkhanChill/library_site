@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 
 import os
 from pathlib import Path
+from urllib.parse import unquote, urlparse
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -38,6 +39,11 @@ def env_bool(name: str, default: bool = False) -> bool:
     return os.getenv(name, str(default)).strip().lower() in {'1', 'true', 'yes', 'on'}
 
 
+def env_list(name: str, default: str = '') -> list[str]:
+    raw_value = os.getenv(name, default)
+    return [item.strip() for item in raw_value.split(',') if item.strip()]
+
+
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
@@ -47,7 +53,7 @@ SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-key")
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv('DEBUG', 'True') == 'True'
 
-ALLOWED_HOSTS = ["127.0.0.1", "localhost", ".onrender.com"]
+ALLOWED_HOSTS = env_list('ALLOWED_HOSTS', '127.0.0.1,localhost,.onrender.com,.hoster.kz')
 
 
 # Application definition
@@ -103,21 +109,70 @@ WSGI_APPLICATION = 'libra.wsgi.application'
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
 # Use SQLite by default so the project works locally out of the box.
-# Enable PostgreSQL only when USE_POSTGRES=True is set explicitly.
-USE_POSTGRES = env_bool('USE_POSTGRES', False)
+# Switch to PostgreSQL or MySQL/MariaDB explicitly with environment variables.
+database_url = os.getenv('DATABASE_URL', '').strip()
+database_scheme = urlparse(database_url).scheme.lower() if database_url else ''
 
-if USE_POSTGRES:
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.postgresql',
-            'NAME': os.getenv('POSTGRES_DB', os.getenv('DB_NAME', 'libra_db')),
-            'USER': os.getenv('POSTGRES_USER', os.getenv('DB_USER', 'postgres')),
-            'PASSWORD': os.getenv('POSTGRES_PASSWORD', os.getenv('DB_PASSWORD', '')),
-            'HOST': os.getenv('POSTGRES_HOST', os.getenv('DB_HOST', 'localhost')),
-            'PORT': os.getenv('POSTGRES_PORT', os.getenv('DB_PORT', '5432')),
+USE_POSTGRES = env_bool('USE_POSTGRES', database_scheme in {'postgres', 'postgresql'})
+USE_MYSQL = env_bool('USE_MYSQL', database_scheme in {'mysql', 'mariadb'})
+
+if USE_MYSQL:
+    if database_url and database_scheme in {'mysql', 'mariadb'}:
+        parsed_db = urlparse(database_url)
+        default_database = {
+            'ENGINE': 'django.db.backends.mysql',
+            'NAME': parsed_db.path.lstrip('/') or os.getenv('MYSQL_DATABASE', os.getenv('DB_NAME', 'libra_db')),
+            'USER': unquote(parsed_db.username or os.getenv('MYSQL_USER', os.getenv('DB_USER', 'root'))),
+            'PASSWORD': unquote(parsed_db.password or os.getenv('MYSQL_PASSWORD', os.getenv('DB_PASSWORD', ''))),
+            'HOST': parsed_db.hostname or os.getenv('MYSQL_HOST', os.getenv('DB_HOST', 'localhost')),
+            'PORT': str(parsed_db.port or os.getenv('MYSQL_PORT', os.getenv('DB_PORT', '3306'))),
+            'CONN_MAX_AGE': int(os.getenv('DB_CONN_MAX_AGE', '60')),
+            'OPTIONS': {
+                'charset': 'utf8mb4',
+            },
+        }
+    else:
+        default_database = {
+            'ENGINE': 'django.db.backends.mysql',
+            'NAME': os.getenv('MYSQL_DATABASE', os.getenv('DB_NAME', 'libra_db')),
+            'USER': os.getenv('MYSQL_USER', os.getenv('DB_USER', 'root')),
+            'PASSWORD': os.getenv('MYSQL_PASSWORD', os.getenv('DB_PASSWORD', '')),
+            'HOST': os.getenv('MYSQL_HOST', os.getenv('DB_HOST', 'localhost')),
+            'PORT': os.getenv('MYSQL_PORT', os.getenv('DB_PORT', '3306')),
+            'CONN_MAX_AGE': int(os.getenv('DB_CONN_MAX_AGE', '60')),
+            'OPTIONS': {
+                'charset': 'utf8mb4',
+            },
+        }
+    DATABASES = {'default': default_database}
+elif USE_POSTGRES:
+    if database_url and database_scheme in {'postgres', 'postgresql'}:
+        parsed_db = urlparse(database_url)
+        db_host = parsed_db.hostname or os.getenv('POSTGRES_HOST', os.getenv('PGHOST', os.getenv('DB_HOST', 'localhost')))
+        db_sslmode = os.getenv('POSTGRES_SSLMODE', os.getenv('PGSSLMODE', 'require' if db_host.endswith('render.com') else 'prefer'))
+        default_database = {
+            'ENGINE': 'django.db.backends.postgresql_psycopg2',
+            'NAME': parsed_db.path.lstrip('/') or os.getenv('POSTGRES_DB', os.getenv('PGDATABASE', os.getenv('DB_NAME', 'libra_db'))),
+            'USER': unquote(parsed_db.username or os.getenv('POSTGRES_USER', os.getenv('PGUSER', os.getenv('DB_USER', 'libra_admin')))),
+            'PASSWORD': unquote(parsed_db.password or os.getenv('POSTGRES_PASSWORD', os.getenv('PGPASSWORD', os.getenv('DB_PASSWORD', 'password')))),
+            'HOST': db_host,
+            'PORT': str(parsed_db.port or os.getenv('POSTGRES_PORT', os.getenv('PGPORT', os.getenv('DB_PORT', '5432')))),
             'CONN_MAX_AGE': int(os.getenv('DB_CONN_MAX_AGE', '60')),
         }
-    }
+        if db_sslmode:
+            default_database['OPTIONS'] = {'sslmode': db_sslmode}
+    else:
+        default_database = {
+            'ENGINE': 'django.db.backends.postgresql_psycopg2',
+            'NAME': os.getenv('POSTGRES_DB', os.getenv('PGDATABASE', os.getenv('DB_NAME', 'libra_db'))),
+            'USER': os.getenv('POSTGRES_USER', os.getenv('PGUSER', os.getenv('DB_USER', 'libra_admin'))),
+            'PASSWORD': os.getenv('POSTGRES_PASSWORD', os.getenv('PGPASSWORD', os.getenv('DB_PASSWORD', 'password'))),
+            'HOST': os.getenv('POSTGRES_HOST', os.getenv('PGHOST', os.getenv('DB_HOST', 'localhost'))),
+            'PORT': os.getenv('POSTGRES_PORT', os.getenv('PGPORT', os.getenv('DB_PORT', '5432'))),
+            'CONN_MAX_AGE': int(os.getenv('DB_CONN_MAX_AGE', '60')),
+        }
+
+    DATABASES = {'default': default_database}
 else:
     DATABASES = {
         'default': {

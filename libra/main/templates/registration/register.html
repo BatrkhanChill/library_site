@@ -11,7 +11,7 @@
                 <div class="auth-hero rounded-4 shadow-lg p-5 bg-white">
                     <span class="eyebrow">{% trans "Создайте аккаунт" %}</span>
                     <h1>{% trans "Присоединяйтесь к библиотеке" %}</h1>
-                    <p class="auth-text">{% trans "Регистрация займёт всего пару минут. После входа вы сможете бронировать книги и просматривать историю выдач." %}</p>
+                    <p class="auth-text">{% trans "Регистрация займёт всего пару минут. После отправки формы на вашу почту придёт код подтверждения, и только после него аккаунт будет активирован." %}</p>
                     <div class="auth-hero-features mt-4">
                         <div><i class="bi bi-check-circle-fill"></i> {% trans "Личный кабинет студента" %}</div>
                         <div><i class="bi bi-check-circle-fill"></i> {% trans "История бронирований" %}</div>
@@ -43,7 +43,7 @@
                                 {% endif %}
                             </div>
                             <div class="mb-4">
-                                <label for="id_student_id" class="form-label">{% trans "Номер студенческого билета" %}</label>
+                                <label for="id_student_id" class="form-label">{% trans "ID" %}</label>
                                 {{ form.student_id }}
                                 {% if form.student_id.errors %}
                                     <div class="text-danger small">{{ form.student_id.errors }}</div>

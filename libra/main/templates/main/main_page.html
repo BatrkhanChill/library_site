@@ -10,7 +10,7 @@
         <div class="row align-items-center g-5">
             <div class="col-lg-7">
                 <span class="eyebrow">{% trans "Новый стиль библиотеки" %}</span>
-                <h1>{% trans "Электронная библиотека с современным интерфейсом в духе iPhone" %}</h1>
+                <h1>{% trans "Электронная библиотека Усть-Каменогорского колледжа экономики и техники" %}</h1>
                 <p class="hero-text">{% trans "Находите книги, учебные пособия и PDF-материалы в чистом, удобном и визуально лёгком интерфейсе — быстро, красиво и без лишнего шума." %}</p>
 
                 <div class="hero-buttons d-flex flex-column flex-sm-row gap-3 mt-4">
@@ -37,38 +37,6 @@
                     <div class="hero-stat-chip">
                         <strong>{{ stats.available_count }}</strong>
                         <span>{% trans "можно взять сейчас" %}</span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-lg-5">
-                <div class="hero-showcase">
-                    <div class="iphone-frame">
-                        <div class="dynamic-island"></div>
-                        <div class="screen-card">
-                            <span class="screen-label">Library OS</span>
-                            <h3>{% trans "Всё важное — на одном экране" %}</h3>
-                            <p>{% trans "Каталог, избранное и история чтения оформлены как удобные iOS-карточки." %}</p>
-
-                            <div class="screen-book">
-                                <div class="screen-book-icon"><i class="bi bi-book-half"></i></div>
-                                <div>
-                                    <strong>{% trans "Быстрый доступ" %}</strong>
-                                    <small>{% trans "Поиск, сохранение и скачивание в пару касаний" %}</small>
-                                </div>
-                            </div>
-
-                            <div class="screen-mini-grid">
-                                <div>
-                                    <strong>{{ stats.authors_count }}</strong>
-                                    <span>{% trans "авторов" %}</span>
-                                </div>
-                                <div>
-                                    <strong>24/7</strong>
-                                    <span>{% trans "онлайн" %}</span>
-                                </div>
-                            </div>
-                        </div>
                     </div>
                 </div>
             </div>
@@ -103,34 +71,6 @@
                 <div class="alert alert-secondary">{% trans "Список категорий будет доступен позже." %}</div>
             </div>
             {% endfor %}
-        </div>
-    </div>
-</section>
-
-<section class="section pt-0">
-    <div class="container">
-        <div class="row g-4">
-            <div class="col-md-4">
-                <div class="feature-card h-100">
-                    <i class="bi bi-phone"></i>
-                    <h5>{% trans "Mobile-first" %}</h5>
-                    <p>{% trans "Увеличенные кнопки, мягкие тени и удобное управление на телефоне." %}</p>
-                </div>
-            </div>
-            <div class="col-md-4">
-                <div class="feature-card h-100">
-                    <i class="bi bi-stars"></i>
-                    <h5>{% trans "Чистый интерфейс" %}</h5>
-                    <p>{% trans "Меньше визуального шума, больше внимания к книгам и полезной информации." %}</p>
-                </div>
-            </div>
-            <div class="col-md-4">
-                <div class="feature-card h-100">
-                    <i class="bi bi-lightning-charge"></i>
-                    <h5>{% trans "Быстрая навигация" %}</h5>
-                    <p>{% trans "Поиск, фильтры и личный кабинет доступны из любой точки сайта." %}</p>
-                </div>
-            </div>
         </div>
     </div>
 </section>
