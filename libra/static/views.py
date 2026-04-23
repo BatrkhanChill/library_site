@@ -31,7 +31,7 @@ def main_page(request):
         'authors_count': Book_Info.objects.filter(available=True).values('author').distinct().count(),
         'available_count': Book_Info.objects.filter(available=True, available_copies__gt=0).count(),
     }
-    return render(request, 'main/main_page.html', {
+    return render(request, 'main/index.html', {
         'categories': categories,
         'new_books': new_books,
         'stats': stats,
