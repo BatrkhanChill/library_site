@@ -1,3 +1,4 @@
+import os
 from django.core.management.base import BaseCommand
 from django.contrib.auth import get_user_model
 from django.db.models.signals import post_save
@@ -21,7 +22,10 @@ class Command(BaseCommand):
         post_save.disconnect(create_user_profile, sender=User)
         post_save.disconnect(save_user_profile, sender=User)
         try:
-            call_command('loaddata', 'data.json', verbosity=1)
+            fixture_path = os.path.join(
+                os.path.dirname(__file__), '..', '..', 'fixtures', 'data.json'
+            )
+            call_command('loaddata', os.path.abspath(fixture_path), verbosity=1)
         finally:
             post_save.connect(create_user_profile, sender=User)
             post_save.connect(save_user_profile, sender=User)
