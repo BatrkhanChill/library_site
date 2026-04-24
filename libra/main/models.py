@@ -70,7 +70,8 @@ class Book_Info(models.Model):
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
     image = models.ImageField(upload_to='books/%Y/%m/%d', blank=True)
-    pdf_file = models.FileField(upload_to='books/pdf/%Y/%m/%d', blank=True, null=True, verbose_name=_('PDF файл'))
+    pdf_file = models.FileField(upload_to='books/pdf/%Y/%m/%d', blank=True, null=True, verbose_name=_('PDF файл'),
+                               storage='cloudinary_storage.storage.RawMediaCloudinaryStorage')
     school_type = models.ForeignKey(School_Type, on_delete=models.SET_NULL, null=True, blank=True, related_name='books', verbose_name=_('Тип школы'))
     specialization = models.ForeignKey(Specialization, on_delete=models.SET_NULL, null=True, blank=True, related_name='books', verbose_name=_('Специализация'))
 
