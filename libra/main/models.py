@@ -3,14 +3,21 @@ import random
 
 from django.db import models
 from cloudinary_storage.storage import RawMediaCloudinaryStorage
+from django.core.exceptions import ValidationError
 from django.urls import reverse
 from django.contrib.auth.models import User
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
-from django.core.exceptions import ValidationError
 from django.core.validators import RegexValidator
 from django.db.models.signals import post_save
 from django.dispatch import receiver
+
+
+def validate_pdf_size(value):
+    # Cloudinary free plan limit: 10MB
+    limit = 10 * 1024 * 1024
+    if value.size > limit:
+        raise ValidationError(f'Файл слишком большой: {value.size // (1024*1024)}MB. Максимум 10MB.')
 
 # Create your models here.
 class Category(models.Model):
@@ -72,7 +79,8 @@ class Book_Info(models.Model):
     updated = models.DateTimeField(auto_now=True)
     image = models.ImageField(upload_to='books/%Y/%m/%d', blank=True)
     pdf_file = models.FileField(upload_to='books/pdf/%Y/%m/%d', blank=True, null=True, verbose_name=_('PDF файл'),
-                               storage=RawMediaCloudinaryStorage())
+                               storage=RawMediaCloudinaryStorage(),
+                               validators=[validate_pdf_size])
     school_type = models.ForeignKey(School_Type, on_delete=models.SET_NULL, null=True, blank=True, related_name='books', verbose_name=_('Тип школы'))
     specialization = models.ForeignKey(Specialization, on_delete=models.SET_NULL, null=True, blank=True, related_name='books', verbose_name=_('Специализация'))
 
