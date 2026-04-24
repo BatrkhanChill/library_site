@@ -2,6 +2,7 @@ from datetime import timedelta
 import random
 
 from django.db import models
+from cloudinary_storage.storage import RawMediaCloudinaryStorage
 from django.urls import reverse
 from django.contrib.auth.models import User
 from django.utils import timezone
@@ -71,7 +72,7 @@ class Book_Info(models.Model):
     updated = models.DateTimeField(auto_now=True)
     image = models.ImageField(upload_to='books/%Y/%m/%d', blank=True)
     pdf_file = models.FileField(upload_to='books/pdf/%Y/%m/%d', blank=True, null=True, verbose_name=_('PDF файл'),
-                               storage='cloudinary_storage.storage.RawMediaCloudinaryStorage')
+                               storage=RawMediaCloudinaryStorage())
     school_type = models.ForeignKey(School_Type, on_delete=models.SET_NULL, null=True, blank=True, related_name='books', verbose_name=_('Тип школы'))
     specialization = models.ForeignKey(Specialization, on_delete=models.SET_NULL, null=True, blank=True, related_name='books', verbose_name=_('Специализация'))
 
