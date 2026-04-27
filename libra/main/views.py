@@ -1,8 +1,9 @@
+import secrets
 from datetime import timedelta
 
 from django.shortcuts import render, get_object_or_404, redirect
 from django.http import JsonResponse
-from .models import Category, Book_Info, BookLoan, Reservation, School_Type, Specialization, BookReservationJournal, AuthCode, Student
+from .models import Category, Book_Info, BookLoan, Reservation, School_Type, Specialization, BookReservationJournal, AuthCode, Student, Profile
 from django.db import transaction
 from django.db.models import Q, F, Sum
 from django.contrib.auth.decorators import login_required, user_passes_test
@@ -377,10 +378,32 @@ def register(request):
     if request.method == 'POST':
         form = UserRegisterForm(request.POST)
         if form.is_valid():
-            user = form.save()
-            auth_code = AuthCode.issue_code(user, AuthCode.PURPOSE_REGISTRATION)
-            _send_auth_code_email(user, auth_code)
-            request.session['pending_registration_user_id'] = user.id
+            # Build user object WITHOUT saving to DB yet
+            user = form.save(commit=False)
+            code = f'{secrets.randbelow(1000000):06d}'
+            expires_at = (timezone.now() + timedelta(minutes=10)).isoformat()
+            request.session['pending_registration'] = {
+                'username': user.username,
+                'email': user.email,
+                'password': user.password,
+                'first_name': user.first_name,
+                'last_name': user.last_name,
+                'student_id': form.cleaned_data['student_id'],
+                'code': code,
+                'expires_at': expires_at,
+            }
+            send_mail(
+                'Код подтверждения регистрации',
+                (
+                    f'Здравствуйте, {user.username}!\n\n'
+                    f'Ваш код подтверждения: {code}\n'
+                    'Введите его на сайте, чтобы завершить регистрацию.\n'
+                    'Код действует 10 минут.'
+                ),
+                settings.DEFAULT_FROM_EMAIL,
+                [user.email],
+                fail_silently=True,
+            )
             messages.info(request, _('Мы отправили код подтверждения на вашу почту.'))
             return redirect('main:verify_registration')
         messages.error(request, _('Пожалуйста, исправьте ошибки в форме регистрации.'))
@@ -391,51 +414,75 @@ def register(request):
 
 
 def verify_registration(request):
-    user_id = request.session.get('pending_registration_user_id')
-    user = User.objects.filter(id=user_id).first() if user_id else None
-
-    if user is None:
+    pending = request.session.get('pending_registration')
+    if not pending:
         messages.info(request, _('Сначала зарегистрируйтесь, чтобы подтвердить аккаунт.'))
         return redirect('main:register')
+
+    email = pending.get('email', '')
 
     if request.method == 'POST':
         form = VerificationCodeForm(request.POST)
         if form.is_valid():
-            auth_code = _get_active_code(user, AuthCode.PURPOSE_REGISTRATION, form.cleaned_data['code'])
-            if auth_code is None:
+            entered_code = form.cleaned_data['code']
+            expires_at = parse_datetime(pending['expires_at'])
+            code_expired = expires_at is None or timezone.now() > expires_at
+
+            if entered_code != pending['code'] or code_expired:
                 form.add_error('code', _('Код неверный или срок его действия истёк.'))
             else:
-                auth_code.is_used = True
-                auth_code.save(update_fields=['is_used'])
-                user.is_active = True
-                user.save(update_fields=['is_active'])
-                profile = getattr(user, 'profile', None)
-                if profile and profile.student_id:
+                with transaction.atomic():
+                    user = User(
+                        username=pending['username'],
+                        email=pending['email'],
+                        password=pending['password'],
+                        first_name=pending.get('first_name', ''),
+                        last_name=pending.get('last_name', ''),
+                        is_active=True,
+                    )
+                    user.save()
+                    profile, _ = Profile.objects.get_or_create(user=user)
+                    profile.student_id = pending['student_id']
+                    student = Student.objects.filter(student_id=pending['student_id']).first()
+                    if student:
+                        profile.group_name = student.group_name or profile.group_name
+                    profile.save()
                     profile.sync_with_student_data()
-                request.session.pop('pending_registration_user_id', None)
+                request.session.pop('pending_registration', None)
                 auth_login(request, user)
                 messages.success(request, _('Аккаунт подтверждён. Добро пожаловать!'))
                 return redirect('main:index')
     else:
         form = VerificationCodeForm()
 
-    return render(request, 'registration/verify_registration.html', {'form': form, 'email': user.email})
+    return render(request, 'registration/verify_registration.html', {'form': form, 'email': email})
 
 
 def resend_verification_code(request):
-    user_id = request.session.get('pending_registration_user_id')
-    if not user_id:
+    pending = request.session.get('pending_registration')
+    if not pending:
         messages.info(request, _('Нет ожидающей регистрации для повторной отправки кода.'))
         return redirect('main:register')
 
-    from django.contrib.auth.models import User
-    user = User.objects.filter(id=user_id).first()
-    if user is None:
-        request.session.pop('pending_registration_user_id', None)
-        return redirect('main:register')
+    code = f'{secrets.randbelow(1000000):06d}'
+    expires_at = (timezone.now() + timedelta(minutes=10)).isoformat()
+    pending['code'] = code
+    pending['expires_at'] = expires_at
+    request.session['pending_registration'] = pending
+    request.session.modified = True
 
-    auth_code = AuthCode.issue_code(user, AuthCode.PURPOSE_REGISTRATION)
-    _send_auth_code_email(user, auth_code)
+    send_mail(
+        'Код подтверждения регистрации',
+        (
+            f'Здравствуйте, {pending["username"]}!\n\n'
+            f'Ваш новый код подтверждения: {code}\n'
+            'Введите его на сайте, чтобы завершить регистрацию.\n'
+            'Код действует 10 минут.'
+        ),
+        settings.DEFAULT_FROM_EMAIL,
+        [pending['email']],
+        fail_silently=True,
+    )
     messages.info(request, _('Новый код подтверждения отправлен на вашу почту.'))
     return redirect('main:verify_registration')
 
