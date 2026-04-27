@@ -1,10 +1,25 @@
 # main/forms.py
+import re
 from django import forms
 from django.contrib.auth.models import User
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth import password_validation
 from django.utils.translation import gettext_lazy as _
 from .models import Profile, Student
+
+
+def _validate_password_strength(password):
+    """Минимум 8 символов, только латиница, хотя бы одна цифра и спецсимвол."""
+    if len(password) < 8:
+        raise forms.ValidationError(_('Пароль должен содержать не менее 8 символов.'))
+    if not re.search(r'[A-Za-z]', password):
+        raise forms.ValidationError(_('Пароль должен содержать латинские буквы.'))
+    if re.search(r'[^A-Za-z0-9!@#$%^&*()_+\-=\[\]{};\':"\\|,.<>\/?`~]', password):
+        raise forms.ValidationError(_('Пароль должен содержать только латинские буквы, цифры и спецсимволы.'))
+    if not re.search(r'\d', password):
+        raise forms.ValidationError(_('Пароль должен содержать хотя бы одну цифру.'))
+    if not re.search(r'[!@#$%^&*()_+\-=\[\]{};\':"\\|,.<>\/?`~]', password):
+        raise forms.ValidationError(_('Пароль должен содержать хотя бы один спецсимвол (!@#$%^&* и т.д.).'))
 
 class UserRegisterForm(UserCreationForm):
     email = forms.EmailField(required=True, label=_('Email'))
@@ -25,6 +40,12 @@ class UserRegisterForm(UserCreationForm):
         if User.objects.filter(email=email).exists():
             raise forms.ValidationError(_('Пользователь с таким email уже существует.'))
         return email
+
+    def clean_password1(self):
+        password = self.cleaned_data.get('password1')
+        if password:
+            _validate_password_strength(password)
+        return password
 
     def clean_student_id(self):
         student_id = self.cleaned_data.get('student_id')

@@ -55,6 +55,10 @@
                                 {% if form.password1.errors %}
                                     <div class="text-danger small">{{ form.password1.errors }}</div>
                                 {% endif %}
+                                <div class="form-text text-muted small mt-1">
+                                    <i class="bi bi-info-circle"></i>
+                                    {% trans "Минимум 8 символов, только латинские буквы, хотя бы одна цифра и один спецсимвол" %} <span class="text-secondary">(!@#$%^&*…)</span>
+                                </div>
                             </div>
                             <div class="mb-4">
                                 <label for="id_password2" class="form-label">{% trans "Подтвердите пароль" %}</label>
