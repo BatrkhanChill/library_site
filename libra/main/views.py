@@ -402,7 +402,7 @@ def register(request):
                 ),
                 settings.DEFAULT_FROM_EMAIL,
                 [user.email],
-                fail_silently=True,
+                fail_silently=False,
             )
             messages.info(request, _('Мы отправили код подтверждения на вашу почту.'))
             return redirect('main:verify_registration')
