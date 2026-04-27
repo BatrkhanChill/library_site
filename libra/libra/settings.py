@@ -197,15 +197,6 @@ STATICFILES_DIRS = [
     os.path.join(BASE_DIR, 'main'),
 ]
 
-STORAGES = {
-    'default': {
-        'BACKEND': 'storages.backends.s3boto3.S3Boto3Storage',
-    },
-    'staticfiles': {
-        'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage',
-    },
-}
-
 # Backblaze B2 via S3-compatible API
 AWS_ACCESS_KEY_ID = os.environ.get('B2_KEY_ID')
 AWS_SECRET_ACCESS_KEY = os.environ.get('B2_APPLICATION_KEY')
@@ -215,7 +206,29 @@ AWS_S3_FILE_OVERWRITE = False
 AWS_QUERYSTRING_AUTH = False
 AWS_S3_SIGNATURE_VERSION = 's3v4'
 
-MEDIA_URL = f"{os.environ.get('B2_ENDPOINT_URL', '')}/{os.environ.get('B2_BUCKET_NAME', '')}/"
+_use_s3 = bool(AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY and AWS_STORAGE_BUCKET_NAME)
+
+if _use_s3:
+    STORAGES = {
+        'default': {
+            'BACKEND': 'storages.backends.s3boto3.S3Boto3Storage',
+        },
+        'staticfiles': {
+            'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage',
+        },
+    }
+    MEDIA_URL = f"{os.environ.get('B2_ENDPOINT_URL', '')}/{os.environ.get('B2_BUCKET_NAME', '')}/"
+else:
+    STORAGES = {
+        'default': {
+            'BACKEND': 'django.core.files.storage.FileSystemStorage',
+        },
+        'staticfiles': {
+            'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage',
+        },
+    }
+    MEDIA_URL = '/media/'
+
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 LOGGING = {
