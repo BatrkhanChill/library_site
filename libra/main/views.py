@@ -441,7 +441,7 @@ def verify_registration(request):
                         is_active=True,
                     )
                     user.save()
-                    profile, _ = Profile.objects.get_or_create(user=user)
+                    profile, _created = Profile.objects.get_or_create(user=user)
                     profile.student_id = pending['student_id']
                     student = Student.objects.filter(student_id=pending['student_id']).first()
                     if student:
