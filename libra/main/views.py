@@ -149,13 +149,18 @@ def index(request, category_slug=None):
         books = books.order_by('title')
 
     selected_category_ids = [int(x) for x in selected_categories] if selected_categories else ([category.id] if category else [])
-    
+
+    paginator = Paginator(books, 21)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
     return render(request, 'main/product/list.html', {
         'category': category,
         'categories': categories,
         'school_types': school_types,
         'specializations': specializations,
-        'books': books,
+        'books': page_obj,
+        'page_obj': page_obj,
         'query': query,
         'sort_by': sort_by,
         'selected_school_types': [int(x) for x in selected_school_types],

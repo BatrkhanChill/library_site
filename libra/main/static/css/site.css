@@ -35,8 +35,7 @@ body.site-body {
 
 .app-shell {
     position: relative;
-    overflow-x: hidden;
-    overflow-y: visible;
+    overflow: visible;
     min-height: 100vh;
 }
 
@@ -779,6 +778,8 @@ button,
     align-items: flex-start;
     gap: 1rem;
     padding: 1.4rem;
+    position: relative;
+    z-index: 10;
 }
 
 .catalog-summary {
@@ -1102,8 +1103,17 @@ button,
         gap: 0.45rem !important;
     }
 
+    /* Keep brand + toggler on the same row; collapse occupies full row below */
     .nav-glass {
-        display: block;
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .nav-glass .navbar-collapse {
+        flex-basis: 100%;
+        flex-grow: 1;
     }
 
     .quick-search {
@@ -1121,6 +1131,16 @@ button,
 
     .hero-background {
         inset: 0.5rem 0.5rem 0;
+    }
+
+    /* Align topbar right section to the left on mobile */
+    .topbar-pill > div:last-child {
+        justify-content: flex-start !important;
+    }
+
+    /* Ensure dropdowns always appear above page content on mobile */
+    .site-header {
+        z-index: 1050;
     }
 }
 
@@ -1158,6 +1178,30 @@ button,
 
 .footer .small {
     color: #94a3b8;
+}
+
+/* Pagination */
+.pagination .page-link {
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    background: rgba(255, 255, 255, 0.76);
+    backdrop-filter: blur(10px);
+    color: var(--text);
+    font-weight: 600;
+    transition: all 0.2s ease;
+}
+
+.pagination .page-link:hover {
+    background: rgba(10, 132, 255, 0.1);
+    color: var(--primary);
+    border-color: rgba(10, 132, 255, 0.2);
+    transform: translateY(-1px);
+}
+
+.pagination .page-item.active .page-link {
+    background: linear-gradient(135deg, var(--primary), #5ac8fa);
+    border-color: transparent;
+    color: #ffffff;
+    box-shadow: 0 6px 18px rgba(10, 132, 255, 0.3);
 }
 
 @media (max-width: 991px) {

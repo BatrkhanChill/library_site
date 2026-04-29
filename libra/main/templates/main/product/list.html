@@ -199,6 +199,48 @@
                         </div>
                         {% endfor %}
                     </div>
+
+                    {% if page_obj.paginator.num_pages > 1 %}
+                    <nav class="mt-5 d-flex justify-content-center" aria-label="{% trans 'Пагинация' %}">
+                        <ul class="pagination pagination-lg gap-1 flex-wrap justify-content-center">
+                            {% if page_obj.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link rounded-pill px-3"
+                                   href="?{% if request.GET.q %}q={{ request.GET.q }}&{% endif %}{% if sort_by %}sort={{ sort_by }}&{% endif %}{% for id in selected_category_ids %}category={{ id }}&{% endfor %}{% for st in selected_school_types %}school_type={{ st }}&{% endfor %}{% for sp in selected_specializations %}specialization={{ sp }}&{% endfor %}{% for sa in selected_subject_areas %}subject_area={{ sa }}&{% endfor %}{% if selected_language %}language={{ selected_language }}&{% endif %}page={{ page_obj.previous_page_number }}"
+                                   aria-label="{% trans 'Предыдущая' %}">
+                                    <i class="bi bi-chevron-left"></i>
+                                </a>
+                            </li>
+                            {% endif %}
+
+                            {% for num in page_obj.paginator.page_range %}
+                                {% if page_obj.number == num %}
+                                <li class="page-item active">
+                                    <span class="page-link rounded-pill px-3">{{ num }}</span>
+                                </li>
+                                {% elif num >= page_obj.number|add:"-3" and num <= page_obj.number|add:"3" %}
+                                <li class="page-item">
+                                    <a class="page-link rounded-pill px-3"
+                                       href="?{% if request.GET.q %}q={{ request.GET.q }}&{% endif %}{% if sort_by %}sort={{ sort_by }}&{% endif %}{% for id in selected_category_ids %}category={{ id }}&{% endfor %}{% for st in selected_school_types %}school_type={{ st }}&{% endfor %}{% for sp in selected_specializations %}specialization={{ sp }}&{% endfor %}{% for sa in selected_subject_areas %}subject_area={{ sa }}&{% endfor %}{% if selected_language %}language={{ selected_language }}&{% endif %}page={{ num }}">
+                                        {{ num }}
+                                    </a>
+                                </li>
+                                {% endif %}
+                            {% endfor %}
+
+                            {% if page_obj.has_next %}
+                            <li class="page-item">
+                                <a class="page-link rounded-pill px-3"
+                                   href="?{% if request.GET.q %}q={{ request.GET.q }}&{% endif %}{% if sort_by %}sort={{ sort_by }}&{% endif %}{% for id in selected_category_ids %}category={{ id }}&{% endfor %}{% for st in selected_school_types %}school_type={{ st }}&{% endfor %}{% for sp in selected_specializations %}specialization={{ sp }}&{% endfor %}{% for sa in selected_subject_areas %}subject_area={{ sa }}&{% endfor %}{% if selected_language %}language={{ selected_language }}&{% endif %}page={{ page_obj.next_page_number }}"
+                                   aria-label="{% trans 'Следующая' %}">
+                                    <i class="bi bi-chevron-right"></i>
+                                </a>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                    {% endif %}
+
                     {% endif %}
                 </div>
             </div>
