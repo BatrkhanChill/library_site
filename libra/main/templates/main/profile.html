@@ -74,6 +74,31 @@
         background: #e9ecef;
         transform: translateX(5px);
     }
+    .saved-book-thumb {
+        width: 56px;
+        height: 72px;
+        border-radius: 8px;
+        overflow: hidden;
+        background: linear-gradient(135deg, rgba(10,132,255,0.08), rgba(94,92,230,0.1));
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .saved-book-img {
+        width: 56px;
+        height: 72px;
+        object-fit: cover;
+        border-radius: 8px;
+    }
+    .saved-book-placeholder {
+        width: 56px;
+        height: 72px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #b9c4d3;
+        font-size: 1.6rem;
+    }
     .overdue {
         border-left-color: #dc3545;
         background: #fff5f5;
@@ -163,7 +188,7 @@
         <li class="nav-item" role="presentation">
             <button class="nav-link" id="saved-tab" data-bs-toggle="tab" data-bs-target="#saved" type="button" role="tab">
                 <i class="bi bi-bookmark-star"></i> {% trans "Сохранённые книги" %}
-                {% if saved_books %}<span class="badge bg-primary ms-2">{{ saved_books|length }}</span>{% endif %}
+                {% if saved_page_obj.paginator.count %}<span class="badge bg-primary ms-2">{{ saved_page_obj.paginator.count }}</span>{% endif %}
             </button>
         </li>
     </ul>
@@ -255,22 +280,66 @@
                 {% if saved_books %}
                     {% for book in saved_books %}
                     <div class="book-item">
-                        <div class="row align-items-center">
-                            <div class="col-md-7">
-                                <strong>{{ book.title }}</strong><br>
-                                <small class="text-muted">{{ book.author }}</small>
+                        <div class="d-flex align-items-center gap-3">
+                            <!-- Миниатюра обложки -->
+                            <div class="saved-book-thumb flex-shrink-0">
+                                {% if book.image %}
+                                <img src="{{ book.image.url }}" alt="{{ book.title }}" class="saved-book-img">
+                                {% else %}
+                                <div class="saved-book-placeholder">
+                                    <i class="bi bi-book"></i>
+                                </div>
+                                {% endif %}
                             </div>
-                            <div class="col-md-5 text-md-end">
-                                <a href="{% url 'main:book_detail' book.id %}" class="btn btn-sm btn-outline-primary mb-2">
-                                    <i class="bi bi-book"></i> {% trans "Подробнее" %}
+                            <!-- Инфо -->
+                            <div class="flex-grow-1" style="min-width:0;">
+                                <strong class="d-block text-truncate">{{ book.title }}</strong>
+                                <small class="text-muted">{{ book.author }}</small>
+                                {% if book.category %}<br><span class="badge bg-primary bg-opacity-10 text-primary mt-1" style="font-size:0.72rem;">{{ book.category.name }}</span>{% endif %}
+                            </div>
+                            <!-- Кнопки -->
+                            <div class="d-flex flex-column flex-sm-row gap-2 flex-shrink-0">
+                                <a href="{% url 'main:book_detail' book.id %}" class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-book"></i> <span class="d-none d-sm-inline">{% trans "Подробнее" %}</span>
                                 </a>
                                 <a href="{% url 'main:toggle_saved_book' book.id %}" class="btn btn-sm btn-outline-danger">
-                                    <i class="bi bi-bookmark-dash"></i> {% trans "Убрать" %}
+                                    <i class="bi bi-bookmark-dash"></i> <span class="d-none d-sm-inline">{% trans "Убрать" %}</span>
                                 </a>
                             </div>
                         </div>
                     </div>
                     {% endfor %}
+
+                    {% if saved_page_obj.paginator.num_pages > 1 %}
+                    <nav class="mt-4 d-flex justify-content-center" aria-label="{% trans 'Пагинация сохранённых' %}">
+                        <ul class="pagination gap-1 flex-wrap justify-content-center">
+                            {% if saved_page_obj.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link rounded-pill px-3" href="?saved_page={{ saved_page_obj.previous_page_number }}" aria-label="{% trans 'Предыдущая' %}">
+                                    <i class="bi bi-chevron-left"></i>
+                                </a>
+                            </li>
+                            {% endif %}
+                            {% for num in saved_page_obj.paginator.page_range %}
+                                {% if saved_page_obj.number == num %}
+                                <li class="page-item active"><span class="page-link rounded-pill px-3">{{ num }}</span></li>
+                                {% elif num >= saved_page_obj.number|add:"-3" and num <= saved_page_obj.number|add:"3" %}
+                                <li class="page-item">
+                                    <a class="page-link rounded-pill px-3" href="?saved_page={{ num }}">{{ num }}</a>
+                                </li>
+                                {% endif %}
+                            {% endfor %}
+                            {% if saved_page_obj.has_next %}
+                            <li class="page-item">
+                                <a class="page-link rounded-pill px-3" href="?saved_page={{ saved_page_obj.next_page_number }}" aria-label="{% trans 'Следующая' %}">
+                                    <i class="bi bi-chevron-right"></i>
+                                </a>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                    {% endif %}
+
                 {% else %}
                     <div class="text-center py-5">
                         <i class="bi bi-bookmark-star" style="font-size: 3rem; color: #dee2e6;"></i>
@@ -285,4 +354,16 @@
 
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Auto-activate saved tab if saved_page param is in URL
+    (function () {
+        if (new URLSearchParams(window.location.search).has('saved_page')) {
+            var tab = document.getElementById('saved-tab');
+            if (tab) { bootstrap.Tab.getOrCreateInstance(tab).show(); }
+        }
+    })();
+</script>
 {% endblock %}

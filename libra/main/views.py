@@ -242,13 +242,17 @@ def profile(request):
         profile = Profile.objects.create(user=user)
     
     # Получаем сохранённые книги
-    saved_books = profile.saved_books.all()
+    saved_books_qs = profile.saved_books.all()
+    saved_paginator = Paginator(saved_books_qs, 10)
+    saved_page_number = request.GET.get('saved_page')
+    saved_page_obj = saved_paginator.get_page(saved_page_number)
     student_record = profile.sync_with_student_data() if profile.student_id else None
 
     context = {
         'user': user,
         'profile': profile,
-        'saved_books': saved_books,
+        'saved_books': saved_page_obj,
+        'saved_page_obj': saved_page_obj,
         'student_record': student_record,
     }
     
