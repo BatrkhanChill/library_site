@@ -3,7 +3,7 @@ from datetime import timedelta
 
 from django.shortcuts import render, get_object_or_404, redirect
 from django.http import JsonResponse
-from .models import Category, Book_Info, BookLoan, Reservation, School_Type, Specialization, BookReservationJournal, AuthCode, Student, Profile
+from .models import Category, Book_Info, BookLoan, Reservation, School_Type, Specialization, BookReservationJournal, AuthCode, Student, Teacher, Profile
 from django.db import transaction
 from django.db.models import Q, F, Sum
 from django.contrib.auth.decorators import login_required, user_passes_test
@@ -20,6 +20,7 @@ from .forms import (
     UserEditForm,
     ProfileEditForm,
     UserRegisterForm,
+    EmailOrUsernameAuthenticationForm,
     VerificationCodeForm,
     PasswordResetRequestForm,
     SetPasswordByCodeForm,
@@ -364,6 +365,7 @@ def reserve_book(request, book_id):
 
 class CustomLoginView(LoginView):
     template_name = 'registration/login.html'
+    form_class = EmailOrUsernameAuthenticationForm
 
     def form_valid(self, form):
         response = super().form_valid(form)
@@ -397,7 +399,8 @@ def register(request):
                 'password': user.password,
                 'first_name': user.first_name,
                 'last_name': user.last_name,
-                'student_id': form.cleaned_data['student_id'],
+                'person_type': form.cleaned_data.get('person_type') or 'student',
+                'external_id': form.cleaned_data['student_id'],
                 'code': code,
                 'expires_at': expires_at,
             }
@@ -440,10 +443,15 @@ def verify_registration(request):
             if entered_code != pending['code'] or code_expired:
                 form.add_error('code', _('Код неверный или срок его действия истёк.'))
             else:
+                pending_email = (pending.get('email') or '').strip()
+                if User.objects.filter(email__iexact=pending_email).exists():
+                    form.add_error(None, _('Пользователь с таким email уже зарегистрирован. Войдите в аккаунт или восстановите пароль.'))
+                    return render(request, 'registration/verify_registration.html', {'form': form, 'email': email})
+
                 with transaction.atomic():
                     user = User(
                         username=pending['username'],
-                        email=pending['email'],
+                        email=pending_email,
                         password=pending['password'],
                         first_name=pending.get('first_name', ''),
                         last_name=pending.get('last_name', ''),
@@ -451,12 +459,25 @@ def verify_registration(request):
                     )
                     user.save()
                     profile, _created = Profile.objects.get_or_create(user=user)
-                    profile.student_id = pending['student_id']
-                    student = Student.objects.filter(student_id=pending['student_id']).first()
-                    if student:
-                        profile.group_name = student.group_name or profile.group_name
+                    person_type = pending.get('person_type') or 'student'
+                    external_id = pending.get('external_id') or pending.get('student_id') or ''
+
+                    profile.person_type = person_type
+                    if person_type == 'teacher':
+                        profile.teacher_id = external_id
+                        profile.student_id = ''
+                        profile.group_name = ''
+                    else:
+                        profile.student_id = external_id
+                        profile.teacher_id = ''
+                        student = Student.objects.filter(student_id=external_id).first()
+                        if student:
+                            profile.group_name = student.group_name or profile.group_name
                     profile.save()
-                    profile.sync_with_student_data()
+                    if person_type == 'teacher':
+                        profile.sync_with_teacher_data()
+                    else:
+                        profile.sync_with_student_data()
                 request.session.pop('pending_registration', None)
                 auth_login(request, user)
                 messages.success(request, _('Аккаунт подтверждён. Добро пожаловать!'))
@@ -501,10 +522,15 @@ def password_reset_request(request):
         form = PasswordResetRequestForm(request.POST)
         if form.is_valid():
             email = form.cleaned_data['email']
-            user = User.objects.filter(email__iexact=email).first()
-            if user is None:
+            users = User.objects.filter(email__iexact=email).order_by('id')
+            users_count = users.count()
+
+            if users_count == 0:
                 form.add_error('email', _('Пользователь с таким email не найден.'))
+            elif users_count > 1:
+                form.add_error('email', _('С этим email найдено несколько аккаунтов. Обратитесь к администратору или используйте имя пользователя.'))
             else:
+                user = users.first()
                 auth_code = AuthCode.issue_code(user, AuthCode.PURPOSE_PASSWORD_RESET)
                 _send_auth_code_email(user, auth_code)
                 request.session['password_reset_user_id'] = user.id
@@ -731,6 +757,47 @@ def student_autocomplete(request):
             }
             for student in students
         ]
+
+    return JsonResponse({'results': results})
+
+
+@user_passes_test(is_admin)
+def teacher_autocomplete(request):
+    query = (request.GET.get('q') or '').strip()
+    results = []
+
+    if query:
+        teacher_records = Teacher.objects.filter(
+            full_name__icontains=query
+        ).order_by('full_name').values_list('full_name', flat=True)
+
+        student_teachers = Student.objects.filter(
+            homeroom_teacher__icontains=query
+        ).exclude(
+            homeroom_teacher=''
+        ).order_by('homeroom_teacher').values_list('homeroom_teacher', flat=True)
+
+        journal_teachers = BookReservationJournal.objects.filter(
+            teacher_name__icontains=query
+        ).exclude(
+            teacher_name=''
+        ).order_by('teacher_name').values_list('teacher_name', flat=True)
+
+        seen = set()
+        for name in list(teacher_records[:20]) + list(student_teachers[:20]) + list(journal_teachers[:20]):
+            normalized = (name or '').strip()
+            if not normalized:
+                continue
+
+            dedupe_key = normalized.lower()
+            if dedupe_key in seen:
+                continue
+
+            seen.add(dedupe_key)
+            results.append({'value': normalized, 'label': normalized})
+
+            if len(results) >= 10:
+                break
 
     return JsonResponse({'results': results})
 

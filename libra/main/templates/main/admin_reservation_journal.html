@@ -374,7 +374,9 @@
                                 <div class="col-md-6">
                                     <div class="mb-3">
                                         <label for="id_teacher_name" class="form-label">{% trans "Имя преподавателя" %}</label>
-                                        <input type="text" class="form-control" id="id_teacher_name" name="teacher_name">
+                                        <input type="text" class="form-control" id="id_teacher_name" name="teacher_name" list="teacherSuggestions" autocomplete="off">
+                                        <datalist id="teacherSuggestions"></datalist>
+                                        <small class="text-muted">{% trans "Начните вводить имя, и появятся подсказки по преподавателям." %}</small>
                                     </div>
                                 </div>
                                 <div class="col-md-6">
@@ -444,6 +446,7 @@
     });
 
     const studentAutocompleteUrl = '{% url "main:student_autocomplete" %}';
+    const teacherAutocompleteUrl = '{% url "main:teacher_autocomplete" %}';
     const bookAutocompleteUrl = '{% url "main:book_autocomplete" %}';
 
     function debounce(fn, delay) {
@@ -534,6 +537,12 @@
                 bookSelect.value = String(book.id);
             }
         }
+    );
+
+    attachAutocomplete(
+        document.getElementById('id_teacher_name'),
+        document.getElementById('teacherSuggestions'),
+        teacherAutocompleteUrl
     );
 
     attachAutocomplete(

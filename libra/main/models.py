@@ -8,7 +8,7 @@ from django.contrib.auth.models import User
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from django.core.validators import RegexValidator
-from django.db.models.signals import post_save
+from django.db.models.signals import post_save, pre_delete
 from django.dispatch import receiver
 
 
@@ -325,6 +325,77 @@ class Student(models.Model):
 
         return result
 
+
+class ReservedStudent(models.Model):
+    """Архив удаленных студентов для резервного хранения данных."""
+
+    student_id = models.CharField(max_length=4, unique=True, verbose_name=_('ID'))
+    full_name = models.CharField(max_length=200, verbose_name=_('ФИО'))
+    group_name = models.CharField(max_length=100, blank=True, verbose_name=_('Группа'))
+    course = models.CharField(max_length=100, blank=True, verbose_name=_('Курс'))
+    year = models.PositiveIntegerField(null=True, blank=True, verbose_name=_('Год'))
+    specialization = models.CharField(max_length=200, blank=True, verbose_name=_('Специальность'))
+    language = models.CharField(max_length=10, choices=Student.LANGUAGE_CHOICES, blank=True, verbose_name=_('Язык'))
+    homeroom_teacher = models.CharField(max_length=200, blank=True, verbose_name=_('Руководитель'))
+    original_created_at = models.DateTimeField(null=True, blank=True, verbose_name=_('Дата добавления в основной список'))
+    deleted_at = models.DateTimeField(default=timezone.now, verbose_name=_('Дата удаления из основного списка'))
+
+    class Meta:
+        verbose_name = _('Резервный студент')
+        verbose_name_plural = _('Резервные студенты')
+        ordering = ['-deleted_at', 'student_id']
+
+    def __str__(self):
+        return f"{self.student_id} - {self.full_name}"
+
+
+class Teacher(models.Model):
+    """Преподаватель, доступный для регистрации по ID."""
+
+    teacher_id = models.CharField(
+        max_length=4,
+        unique=True,
+        verbose_name=_('ID'),
+        validators=[RegexValidator(r'^\d{4}$', _('ID должен состоять из 4 цифр.'))],
+    )
+    full_name = models.CharField(max_length=200, verbose_name=_('ФИО'))
+    department = models.CharField(max_length=200, blank=True, verbose_name=_('Кафедра/отдел'))
+    position = models.CharField(max_length=200, blank=True, verbose_name=_('Должность'))
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_('Дата добавления'))
+
+    class Meta:
+        verbose_name = _('Преподаватель')
+        verbose_name_plural = _('Преподаватели')
+        ordering = ['teacher_id']
+
+    def __str__(self):
+        return f"{self.teacher_id} - {self.full_name}"
+
+    @staticmethod
+    def normalize_teacher_id(value):
+        raw_value = '' if value is None else str(value).strip()
+        digits = ''.join(ch for ch in raw_value if ch.isdigit())
+        if not digits:
+            raise ValidationError(_('ID должен содержать только цифры.'))
+        if len(digits) > 4:
+            raise ValidationError(_('ID должен состоять из 4 цифр.'))
+        return digits.zfill(4)
+
+    @classmethod
+    def next_teacher_id(cls):
+        last_teacher = cls.objects.exclude(teacher_id='').order_by('-teacher_id').first()
+        next_number = int(last_teacher.teacher_id) + 1 if last_teacher else 1
+        if next_number > 9999:
+            raise ValidationError(_('Свободные 4-значные ID закончились.'))
+        return f"{next_number:04d}"
+
+    def save(self, *args, **kwargs):
+        if self.teacher_id:
+            self.teacher_id = self.normalize_teacher_id(self.teacher_id)
+        else:
+            self.teacher_id = self.next_teacher_id()
+        super().save(*args, **kwargs)
+
 class AuthCode(models.Model):
     PURPOSE_REGISTRATION = 'registration'
     PURPOSE_PASSWORD_RESET = 'password_reset'
@@ -380,6 +451,22 @@ class Profile(models.Model):
         verbose_name=_('ID'),
         validators=[RegexValidator(r'^\d{4}$', _('ID должен состоять из 4 цифр.'))],
     )
+    teacher_id = models.CharField(
+        max_length=4,
+        blank=True,
+        verbose_name=_('ID преподавателя'),
+        validators=[RegexValidator(r'^\d{4}$', _('ID должен состоять из 4 цифр.'))],
+    )
+    PERSON_TYPE_CHOICES = [
+        ('student', _('Студент')),
+        ('teacher', _('Преподаватель')),
+    ]
+    person_type = models.CharField(
+        max_length=10,
+        choices=PERSON_TYPE_CHOICES,
+        default='student',
+        verbose_name=_('Тип пользователя'),
+    )
     group_name = models.CharField(max_length=50, blank=True, verbose_name=_('Группа'))
     avatar = models.ImageField(upload_to='avatars/%Y/%m/%d', blank=True, null=True, verbose_name=_('Аватар'))
     saved_books = models.ManyToManyField('Book_Info', blank=True, related_name='saved_by', verbose_name=_('Сохранённые книги'))
@@ -422,6 +509,23 @@ class Profile(models.Model):
 
         return student
 
+    def sync_with_teacher_data(self):
+        teacher = self.teacher_record
+        if not teacher:
+            return None
+
+        self.teacher_id = teacher.teacher_id
+        self.save(update_fields=['teacher_id'])
+
+        full_name = (teacher.full_name or '').strip().split()
+        if full_name:
+            self.user.last_name = full_name[0]
+            if len(full_name) > 1:
+                self.user.first_name = full_name[1]
+            self.user.save(update_fields=['first_name', 'last_name'])
+
+        return teacher
+
     @property
     def student_record(self):
         if not self.student_id:
@@ -429,11 +533,22 @@ class Profile(models.Model):
         return Student.objects.filter(student_id=self.student_id).first()
 
     @property
+    def teacher_record(self):
+        if not self.teacher_id:
+            return None
+        return Teacher.objects.filter(teacher_id=self.teacher_id).first()
+
+    @property
     def full_name(self):
         """Возвращает полное имя пользователя"""
-        student = self.student_record
-        if student and student.full_name:
-            return student.full_name
+        if self.person_type == 'teacher':
+            teacher = self.teacher_record
+            if teacher and teacher.full_name:
+                return teacher.full_name
+        else:
+            student = self.student_record
+            if student and student.full_name:
+                return student.full_name
         if self.user.first_name and self.user.last_name:
             return f"{self.user.last_name} {self.user.first_name}"
         return self.user.username
@@ -450,3 +565,22 @@ def save_user_profile(sender, instance, **kwargs):
     # Some legacy users may not have a related profile row.
     profile, _ = Profile.objects.get_or_create(user=instance)
     profile.save()
+
+
+@receiver(pre_delete, sender=Student)
+def backup_student_before_delete(sender, instance, **kwargs):
+    """Перед удалением переносит студента в резервный список."""
+    ReservedStudent.objects.update_or_create(
+        student_id=instance.student_id,
+        defaults={
+            'full_name': instance.full_name,
+            'group_name': instance.group_name,
+            'course': instance.course,
+            'year': instance.year,
+            'specialization': instance.specialization,
+            'language': instance.language,
+            'homeroom_teacher': instance.homeroom_teacher,
+            'original_created_at': instance.created_at,
+            'deleted_at': timezone.now(),
+        },
+    )

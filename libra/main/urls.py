@@ -17,6 +17,7 @@ urlpatterns = [
     path('admin-journal/', views.reservation_journal, name='reservation_journal'),
     path('admin-journal/create/', views.create_reservation, name='create_reservation'),
     path('admin-journal/autocomplete/students/', views.student_autocomplete, name='student_autocomplete'),
+    path('admin-journal/autocomplete/teachers/', views.teacher_autocomplete, name='teacher_autocomplete'),
     path('admin-journal/autocomplete/books/', views.book_autocomplete, name='book_autocomplete'),
     path('return-book/<int:reservation_id>/', views.return_book, name='return_book'),
     path('accounts/register/', views.register, name='register'),

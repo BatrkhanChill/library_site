@@ -35,6 +35,10 @@ for candidate in (BASE_DIR.parent / '.env', BASE_DIR / '.env'):
     load_env_file(candidate)
 
 
+def env_bool(name: str, default: bool = False) -> bool:
+    return os.getenv(name, str(default)).strip().lower() in {'1', 'true', 'yes', 'on'}
+
+
 def env_list(name: str, default: str = '') -> list[str]:
     raw_value = os.getenv(name, default)
     return [item.strip() for item in raw_value.split(',') if item.strip()]
@@ -62,13 +66,11 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
 
-    'storages',
     'main',
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.locale.LocaleMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -109,34 +111,75 @@ WSGI_APPLICATION = 'libra.wsgi.application'
 # Use SQLite by default so the project works locally out of the box.
 # Switch to PostgreSQL or MySQL/MariaDB explicitly with environment variables.
 database_url = os.getenv('DATABASE_URL', '').strip()
+database_scheme = urlparse(database_url).scheme.lower() if database_url else ''
 
-if database_url:
-    parsed_db = urlparse(database_url)
-    db_host = parsed_db.hostname or os.getenv('PGHOST', 'localhost')
-    db_sslmode = os.getenv('PGSSLMODE', 'require' if db_host.endswith('render.com') else 'prefer')
-    db_config = {
-        'ENGINE': 'django.db.backends.postgresql_psycopg2',
-        'NAME': parsed_db.path.lstrip('/') or os.getenv('PGDATABASE', 'libra_db'),
-        'USER': unquote(parsed_db.username or os.getenv('PGUSER', 'libra_admin')),
-        'PASSWORD': unquote(parsed_db.password or os.getenv('PGPASSWORD', '')),
-        'HOST': db_host,
-        'PORT': str(parsed_db.port or os.getenv('PGPORT', '5432')),
-        'CONN_MAX_AGE': int(os.getenv('DB_CONN_MAX_AGE', '60')),
-    }
-    if db_sslmode:
-        db_config['OPTIONS'] = {'sslmode': db_sslmode}
+USE_POSTGRES = env_bool('USE_POSTGRES', database_scheme in {'postgres', 'postgresql'})
+USE_MYSQL = env_bool('USE_MYSQL', database_scheme in {'mysql', 'mariadb'})
+
+if USE_MYSQL:
+    if database_url and database_scheme in {'mysql', 'mariadb'}:
+        parsed_db = urlparse(database_url)
+        default_database = {
+            'ENGINE': 'django.db.backends.mysql',
+            'NAME': parsed_db.path.lstrip('/') or os.getenv('MYSQL_DATABASE', os.getenv('DB_NAME', 'libra_db')),
+            'USER': unquote(parsed_db.username or os.getenv('MYSQL_USER', os.getenv('DB_USER', 'root'))),
+            'PASSWORD': unquote(parsed_db.password or os.getenv('MYSQL_PASSWORD', os.getenv('DB_PASSWORD', ''))),
+            'HOST': parsed_db.hostname or os.getenv('MYSQL_HOST', os.getenv('DB_HOST', 'localhost')),
+            'PORT': str(parsed_db.port or os.getenv('MYSQL_PORT', os.getenv('DB_PORT', '3306'))),
+            'CONN_MAX_AGE': int(os.getenv('DB_CONN_MAX_AGE', '60')),
+            'OPTIONS': {
+                'charset': 'utf8mb4',
+            },
+        }
+    else:
+        default_database = {
+            'ENGINE': 'django.db.backends.mysql',
+            'NAME': os.getenv('MYSQL_DATABASE', os.getenv('DB_NAME', 'libra_db')),
+            'USER': os.getenv('MYSQL_USER', os.getenv('DB_USER', 'root')),
+            'PASSWORD': os.getenv('MYSQL_PASSWORD', os.getenv('DB_PASSWORD', '')),
+            'HOST': os.getenv('MYSQL_HOST', os.getenv('DB_HOST', 'localhost')),
+            'PORT': os.getenv('MYSQL_PORT', os.getenv('DB_PORT', '3306')),
+            'CONN_MAX_AGE': int(os.getenv('DB_CONN_MAX_AGE', '60')),
+            'OPTIONS': {
+                'charset': 'utf8mb4',
+            },
+        }
+    DATABASES = {'default': default_database}
+elif USE_POSTGRES:
+    if database_url and database_scheme in {'postgres', 'postgresql'}:
+        parsed_db = urlparse(database_url)
+        db_host = parsed_db.hostname or os.getenv('POSTGRES_HOST', os.getenv('PGHOST', os.getenv('DB_HOST', 'localhost')))
+        db_sslmode = os.getenv('POSTGRES_SSLMODE', os.getenv('PGSSLMODE', 'require' if db_host.endswith('render.com') else 'prefer'))
+        default_database = {
+            'ENGINE': 'django.db.backends.postgresql_psycopg2',
+            'NAME': parsed_db.path.lstrip('/') or os.getenv('POSTGRES_DB', os.getenv('PGDATABASE', os.getenv('DB_NAME', 'libra_db'))),
+            'USER': unquote(parsed_db.username or os.getenv('POSTGRES_USER', os.getenv('PGUSER', os.getenv('DB_USER', 'libra_admin')))),
+            'PASSWORD': unquote(parsed_db.password or os.getenv('POSTGRES_PASSWORD', os.getenv('PGPASSWORD', os.getenv('DB_PASSWORD', 'password')))),
+            'HOST': db_host,
+            'PORT': str(parsed_db.port or os.getenv('POSTGRES_PORT', os.getenv('PGPORT', os.getenv('DB_PORT', '5432')))),
+            'CONN_MAX_AGE': int(os.getenv('DB_CONN_MAX_AGE', '60')),
+        }
+        if db_sslmode:
+            default_database['OPTIONS'] = {'sslmode': db_sslmode}
+    else:
+        default_database = {
+            'ENGINE': 'django.db.backends.postgresql_psycopg2',
+            'NAME': os.getenv('POSTGRES_DB', os.getenv('PGDATABASE', os.getenv('DB_NAME', 'libra_db'))),
+            'USER': os.getenv('POSTGRES_USER', os.getenv('PGUSER', os.getenv('DB_USER', 'libra_admin'))),
+            'PASSWORD': os.getenv('POSTGRES_PASSWORD', os.getenv('PGPASSWORD', os.getenv('DB_PASSWORD', 'password'))),
+            'HOST': os.getenv('POSTGRES_HOST', os.getenv('PGHOST', os.getenv('DB_HOST', 'localhost'))),
+            'PORT': os.getenv('POSTGRES_PORT', os.getenv('PGPORT', os.getenv('DB_PORT', '5432'))),
+            'CONN_MAX_AGE': int(os.getenv('DB_CONN_MAX_AGE', '60')),
+        }
+
+    DATABASES = {'default': default_database}
 else:
-    db_config = {
-        'ENGINE': 'django.db.backends.postgresql_psycopg2',
-        'NAME': os.getenv('PGDATABASE', os.getenv('DB_NAME', 'libra_db')),
-        'USER': os.getenv('PGUSER', os.getenv('DB_USER', 'libra_admin')),
-        'PASSWORD': os.getenv('PGPASSWORD', os.getenv('DB_PASSWORD', '')),
-        'HOST': os.getenv('PGHOST', os.getenv('DB_HOST', 'localhost')),
-        'PORT': os.getenv('PGPORT', os.getenv('DB_PORT', '5432')),
-        'CONN_MAX_AGE': int(os.getenv('DB_CONN_MAX_AGE', '60')),
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
     }
-
-DATABASES = {'default': db_config}
 
 
 # Password validation
@@ -144,8 +187,22 @@ DATABASES = {'default': db_config}
 
 AUTH_PASSWORD_VALIDATORS = [
     {
-        'NAME': 'main.validators.CustomPasswordValidator',
+        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
     },
+    {
+        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
+    },
+    {
+        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
+    },
+    {
+        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
+    },
+]
+
+
+AUTHENTICATION_BACKENDS = [
+    'main.backends.EmailOrUsernameModelBackend',
 ]
 
 
@@ -197,57 +254,5 @@ STATICFILES_DIRS = [
     os.path.join(BASE_DIR, 'main'),
 ]
 
-# Backblaze B2 via S3-compatible API
-AWS_ACCESS_KEY_ID = os.environ.get('B2_KEY_ID')
-AWS_SECRET_ACCESS_KEY = os.environ.get('B2_APPLICATION_KEY')
-AWS_STORAGE_BUCKET_NAME = os.environ.get('B2_BUCKET_NAME')
-AWS_S3_ENDPOINT_URL = os.environ.get('B2_ENDPOINT_URL')
-AWS_S3_FILE_OVERWRITE = False
-AWS_QUERYSTRING_AUTH = False
-AWS_S3_SIGNATURE_VERSION = 's3v4'
-
-_use_s3 = bool(AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY and AWS_STORAGE_BUCKET_NAME)
-
-if _use_s3:
-    STORAGES = {
-        'default': {
-            'BACKEND': 'storages.backends.s3boto3.S3Boto3Storage',
-        },
-        'staticfiles': {
-            'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage',
-        },
-    }
-    MEDIA_URL = f"{os.environ.get('B2_ENDPOINT_URL', '')}/{os.environ.get('B2_BUCKET_NAME', '')}/"
-else:
-    STORAGES = {
-        'default': {
-            'BACKEND': 'django.core.files.storage.FileSystemStorage',
-        },
-        'staticfiles': {
-            'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage',
-        },
-    }
-    MEDIA_URL = '/media/'
-
+MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
-
-LOGGING = {
-    'version': 1,
-    'disable_existing_loggers': False,
-    'handlers': {
-        'console': {
-            'class': 'logging.StreamHandler',
-        },
-    },
-    'root': {
-        'handlers': ['console'],
-        'level': 'WARNING',
-    },
-    'loggers': {
-        'django': {
-            'handlers': ['console'],
-            'level': 'ERROR',
-            'propagate': False,
-        },
-    },
-}

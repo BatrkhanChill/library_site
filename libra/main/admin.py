@@ -3,7 +3,7 @@ from django.contrib import admin
 from django.utils.html import format_html
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
-from .models import Category, Book_Info, School_Type, Specialization, BookReservationJournal, Reservation, Student
+from .models import Category, Book_Info, School_Type, Specialization, BookReservationJournal, Reservation, Student, Teacher, ReservedStudent
 
 # Register your models here.
 
@@ -205,6 +205,30 @@ class BookReservationJournalAdmin(admin.ModelAdmin):
 class StudentAdmin(admin.ModelAdmin):
     list_display = ['student_id', 'full_name', 'group_name', 'course', 'year', 'specialization', 'language', 'homeroom_teacher']
     search_fields = ['student_id', 'full_name', 'group_name', 'course', 'year', 'specialization', 'language', 'homeroom_teacher']
+
+
+@admin.register(ReservedStudent)
+class ReservedStudentAdmin(admin.ModelAdmin):
+    list_display = ['student_id', 'full_name', 'group_name', 'course', 'year', 'deleted_at']
+    search_fields = ['student_id', 'full_name', 'group_name', 'specialization', 'homeroom_teacher']
+    readonly_fields = [
+        'student_id',
+        'full_name',
+        'group_name',
+        'course',
+        'year',
+        'specialization',
+        'language',
+        'homeroom_teacher',
+        'original_created_at',
+        'deleted_at',
+    ]
+
+
+@admin.register(Teacher)
+class TeacherAdmin(admin.ModelAdmin):
+    list_display = ['teacher_id', 'full_name', 'department', 'position', 'created_at']
+    search_fields = ['teacher_id', 'full_name', 'department', 'position']
 
 
 @admin.register(Reservation)

@@ -2,10 +2,10 @@
 import re
 from django import forms
 from django.contrib.auth.models import User
-from django.contrib.auth.forms import UserCreationForm
+from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
 from django.contrib.auth import password_validation
 from django.utils.translation import gettext_lazy as _
-from .models import Profile, Student
+from .models import Profile, Student, Teacher
 
 
 def _validate_password_strength(password):
@@ -22,22 +22,31 @@ def _validate_password_strength(password):
         raise forms.ValidationError(_('Пароль должен содержать хотя бы один спецсимвол (!@#$%^&* и т.д.).'))
 
 class UserRegisterForm(UserCreationForm):
+    person_type = forms.ChoiceField(
+        required=True,
+        initial='student',
+        choices=Profile.PERSON_TYPE_CHOICES,
+        widget=forms.RadioSelect,
+        label=_('Тип пользователя'),
+    )
     email = forms.EmailField(required=True, label=_('Email'))
     student_id = forms.CharField(required=True, label=_('ID'))
 
     class Meta:
         model = User
-        fields = ['username', 'email', 'student_id', 'password1', 'password2']
+        fields = ['username', 'email', 'person_type', 'student_id', 'password1', 'password2']
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         for field in self.fields:
+            if field == 'person_type':
+                continue
             self.fields[field].widget.attrs.update({'class': 'form-control'})
         self.fields['student_id'].widget.attrs.update({'placeholder': '0001', 'maxlength': '4'})
 
     def clean_email(self):
-        email = self.cleaned_data.get('email')
-        if User.objects.filter(email=email).exists():
+        email = (self.cleaned_data.get('email') or '').strip()
+        if User.objects.filter(email__iexact=email).exists():
             raise forms.ValidationError(_('Пользователь с таким email уже существует.'))
         return email
 
@@ -49,39 +58,129 @@ class UserRegisterForm(UserCreationForm):
 
     def clean_student_id(self):
         student_id = self.cleaned_data.get('student_id')
+        person_type = self.cleaned_data.get('person_type') or 'student'
+
         if not student_id:
             raise forms.ValidationError(_('Пожалуйста, укажите ID.'))
+
         try:
-            student_id = Student.normalize_student_id(student_id)
+            normalized_id = Student.normalize_student_id(student_id)
         except Exception as exc:
             raise forms.ValidationError(exc)
-        if not Student.objects.filter(student_id=student_id).exists():
+
+        if person_type == 'teacher':
+            if not Teacher.objects.filter(teacher_id=normalized_id).exists():
+                raise forms.ValidationError(_('ID преподавателя не найден в базе. Обратитесь к администрации.'))
+            if Profile.objects.filter(teacher_id=normalized_id).exists():
+                raise forms.ValidationError(_('Пользователь с таким ID преподавателя уже зарегистрирован.'))
+            return normalized_id
+
+        if not Student.objects.filter(student_id=normalized_id).exists():
             raise forms.ValidationError(_('ID не найден в базе. Обратитесь к администрации.'))
-        if Profile.objects.filter(student_id=student_id).exists():
+        if Profile.objects.filter(student_id=normalized_id).exists():
             raise forms.ValidationError(_('Пользователь с таким ID уже зарегистрирован.'))
-        return student_id
+        return normalized_id
 
     def save(self, commit=True):
         user = super().save(commit=False)
         user.email = self.cleaned_data['email']
         user.is_active = False
         student_id = self.cleaned_data.get('student_id')
-        student = Student.objects.filter(student_id=student_id).first()
-        if student:
-            full_name = (student.full_name or '').strip().split()
-            if full_name:
-                user.last_name = full_name[0]
-                if len(full_name) > 1:
-                    user.first_name = full_name[1]
+        person_type = self.cleaned_data.get('person_type') or 'student'
+
+        student = None
+        teacher = None
+        if person_type == 'teacher':
+            teacher = Teacher.objects.filter(teacher_id=student_id).first()
+            full_name = (teacher.full_name or '').strip().split() if teacher else []
+        else:
+            student = Student.objects.filter(student_id=student_id).first()
+            full_name = (student.full_name or '').strip().split() if student else []
+
+        if full_name:
+            user.last_name = full_name[0]
+            if len(full_name) > 1:
+                user.first_name = full_name[1]
+
         if commit:
             user.save()
             profile, _ = Profile.objects.get_or_create(user=user)
-            profile.student_id = student_id
-            if student:
-                profile.group_name = student.group_name or profile.group_name
+            profile.person_type = person_type
+            if person_type == 'teacher':
+                profile.teacher_id = student_id
+                profile.student_id = ''
+                profile.group_name = ''
+            else:
+                profile.student_id = student_id
+                profile.teacher_id = ''
+                if student:
+                    profile.group_name = student.group_name or profile.group_name
             profile.save()
-            profile.sync_with_student_data()
+            if person_type == 'teacher':
+                profile.sync_with_teacher_data()
+            else:
+                profile.sync_with_student_data()
+
         return user
+
+
+class EmailOrUsernameAuthenticationForm(AuthenticationForm):
+    """Позволяет входить как по username, так и по email."""
+
+    error_messages = {
+        **AuthenticationForm.error_messages,
+        'user_not_found': _('Пользователь не найден. Проверьте имя пользователя или email.'),
+        'bad_password': _('Неверный пароль.'),
+        'duplicate_identifier': _('Найдено несколько аккаунтов. Используйте точное имя пользователя.'),
+    }
+
+    def _resolve_user(self, identifier):
+        # 1) Exact username has top priority.
+        user = User.objects.filter(username=identifier).first()
+        if user is not None:
+            return user
+
+        # 2) Case-insensitive username fallback, but only when unique.
+        username_matches = User.objects.filter(username__iexact=identifier).order_by('id')
+        if username_matches.count() > 1:
+            raise forms.ValidationError(self.error_messages['duplicate_identifier'])
+        if username_matches.count() == 1:
+            return username_matches.first()
+
+        # 3) Email lookup, but only when unique.
+        if '@' in identifier:
+            email_matches = User.objects.filter(email__iexact=identifier).order_by('id')
+            if email_matches.count() > 1:
+                raise forms.ValidationError(self.error_messages['duplicate_identifier'])
+            if email_matches.count() == 1:
+                return email_matches.first()
+
+        return None
+
+    def clean_username(self):
+        return (self.cleaned_data.get('username') or '').strip()
+
+    def clean(self):
+        username = self.cleaned_data.get('username')
+        password = self.cleaned_data.get('password')
+
+        if not username or not password:
+            return self.cleaned_data
+
+        try:
+            user = self._resolve_user(username)
+        except forms.ValidationError as exc:
+            raise forms.ValidationError(exc.messages[0], code='invalid_login')
+
+        if user is None:
+            raise forms.ValidationError(self.error_messages['user_not_found'], code='invalid_login')
+
+        if not user.check_password(password):
+            raise forms.ValidationError(self.error_messages['bad_password'], code='invalid_login')
+
+        self.confirm_login_allowed(user)
+        self.user_cache = user
+        return self.cleaned_data
 
 class VerificationCodeForm(forms.Form):
     code = forms.CharField(max_length=6, label=_('Код подтверждения'))

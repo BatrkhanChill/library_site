@@ -43,8 +43,25 @@
                                 {% endif %}
                             </div>
                             <div class="mb-4">
-                                <label for="id_student_id" class="form-label">{% trans "ID" %}</label>
+                                <label for="id_person_type" class="form-label">{% trans "Тип пользователя" %}</label>
+                                <div class="border rounded-3 p-3">
+                                    {% for radio in form.person_type %}
+                                    <div class="form-check mb-2{% if forloop.last %} mb-0{% endif %}">
+                                        {{ radio.tag }}
+                                        <label class="form-check-label" for="{{ radio.id_for_label }}">{{ radio.choice_label }}</label>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                {% if form.person_type.errors %}
+                                    <div class="text-danger small">{{ form.person_type.errors }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="mb-4">
+                                <label for="id_student_id" class="form-label">{% trans "ID студента/преподавателя" %}</label>
                                 {{ form.student_id }}
+                                <div class="form-text text-muted small mt-1">
+                                    {% trans "Если выбран преподаватель, ID проверяется по списку преподавателей и не конфликтует с ID студентов." %}
+                                </div>
                                 {% if form.student_id.errors %}
                                     <div class="text-danger small">{{ form.student_id.errors }}</div>
                                 {% endif %}
