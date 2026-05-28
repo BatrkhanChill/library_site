@@ -65,6 +65,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'storages',
 
     'main',
 ]
@@ -258,3 +259,39 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+USE_S3 = env_bool('USE_S3', False)
+
+if USE_S3:
+    b2_public = env_bool('B2_MEDIA_PUBLIC', True)
+    b2_custom_domain = os.getenv('B2_MEDIA_PUBLIC_DOMAIN', '').strip()
+    b2_bucket = os.getenv('B2_BUCKET_NAME', '').strip()
+    b2_endpoint = os.getenv('B2_ENDPOINT_URL', '').strip()
+
+    AWS_ACCESS_KEY_ID = os.getenv('B2_ACCESS_KEY_ID', '').strip()
+    AWS_SECRET_ACCESS_KEY = os.getenv('B2_SECRET_ACCESS_KEY', '').strip()
+    AWS_STORAGE_BUCKET_NAME = b2_bucket
+    AWS_S3_REGION_NAME = os.getenv('B2_REGION', '').strip()
+    AWS_S3_ENDPOINT_URL = b2_endpoint
+    AWS_S3_SIGNATURE_VERSION = 's3v4'
+    AWS_S3_ADDRESSING_STYLE = 'path'
+    AWS_DEFAULT_ACL = None
+    AWS_QUERYSTRING_AUTH = not b2_public
+    AWS_S3_FILE_OVERWRITE = False
+
+    if b2_custom_domain:
+        AWS_S3_CUSTOM_DOMAIN = b2_custom_domain
+
+    STORAGES = {
+        'default': {
+            'BACKEND': 'storages.backends.s3.S3Storage',
+        },
+        'staticfiles': {
+            'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage',
+        },
+    }
+
+    if b2_custom_domain:
+        MEDIA_URL = f"https://{b2_custom_domain}/"
+    elif b2_endpoint and b2_bucket:
+        MEDIA_URL = f"{b2_endpoint.rstrip('/')}/{b2_bucket}/"

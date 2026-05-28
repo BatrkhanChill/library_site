@@ -27,6 +27,22 @@ services:
         value: True
       - key: DEFAULT_FROM_EMAIL
         sync: false
+      - key: USE_S3
+        value: True
+      - key: B2_ACCESS_KEY_ID
+        sync: false
+      - key: B2_SECRET_ACCESS_KEY
+        sync: false
+      - key: B2_BUCKET_NAME
+        sync: false
+      - key: B2_REGION
+        sync: false
+      - key: B2_ENDPOINT_URL
+        sync: false
+      - key: B2_MEDIA_PUBLIC_DOMAIN
+        sync: false
+      - key: B2_MEDIA_PUBLIC
+        value: True
 
 databases:
   - name: libraryy-db
