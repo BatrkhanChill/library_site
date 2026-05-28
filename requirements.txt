@@ -1,12 +1,11 @@
 asgiref==3.11.0
-boto3==1.38.0
 Django==6.0.1
-django-storages[s3]==1.14.6
-gunicorn==25.3.0
 pillow==12.1.0
-psycopg2-binary==2.9.10
+psycopg[binary]==3.2.9
+PyMySQL==1.1.1
 sqlparse==0.5.5
 tzdata==2025.3
-whitenoise==6.9.0
+dj-database-url==0.5.0
+gunicorn==25.3.0
 
 
