@@ -316,3 +316,24 @@ if USE_S3:
         MEDIA_URL = f"https://{b2_custom_domain}/"
     elif b2_endpoint and b2_bucket:
         MEDIA_URL = f"{b2_endpoint.rstrip('/')}/{b2_bucket}/"
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console'],
+            'level': 'ERROR',
+        },
+        'django.request': {
+            'handlers': ['console'],
+            'level': 'ERROR',
+            'propagate': False,
+        },
+    },
+}
