@@ -262,16 +262,37 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 USE_S3 = env_bool('USE_S3', False)
 
+b2_access_key = os.getenv('B2_ACCESS_KEY_ID', '').strip()
+b2_secret_key = os.getenv('B2_SECRET_ACCESS_KEY', '').strip()
+b2_bucket = os.getenv('B2_BUCKET_NAME', '').strip()
+b2_endpoint = os.getenv('B2_ENDPOINT_URL', '').strip()
+b2_region = os.getenv('B2_REGION', '').strip()
+b2_public_domain = os.getenv('B2_MEDIA_PUBLIC_DOMAIN', '').strip()
+
+if USE_S3:
+    # Fall back to local media storage if required B2 values are not configured.
+    required_b2_values = {
+        'B2_ACCESS_KEY_ID': b2_access_key,
+        'B2_SECRET_ACCESS_KEY': b2_secret_key,
+        'B2_BUCKET_NAME': b2_bucket,
+        'B2_ENDPOINT_URL': b2_endpoint,
+    }
+    missing_b2_values = [name for name, value in required_b2_values.items() if not value]
+    if missing_b2_values:
+        USE_S3 = False
+        print(
+            'USE_S3 is enabled, but required B2 variables are missing: '
+            f"{', '.join(missing_b2_values)}. Falling back to local media storage."
+        )
+
 if USE_S3:
     b2_public = env_bool('B2_MEDIA_PUBLIC', True)
-    b2_custom_domain = os.getenv('B2_MEDIA_PUBLIC_DOMAIN', '').strip()
-    b2_bucket = os.getenv('B2_BUCKET_NAME', '').strip()
-    b2_endpoint = os.getenv('B2_ENDPOINT_URL', '').strip()
+    b2_custom_domain = b2_public_domain
 
-    AWS_ACCESS_KEY_ID = os.getenv('B2_ACCESS_KEY_ID', '').strip()
-    AWS_SECRET_ACCESS_KEY = os.getenv('B2_SECRET_ACCESS_KEY', '').strip()
+    AWS_ACCESS_KEY_ID = b2_access_key
+    AWS_SECRET_ACCESS_KEY = b2_secret_key
     AWS_STORAGE_BUCKET_NAME = b2_bucket
-    AWS_S3_REGION_NAME = os.getenv('B2_REGION', '').strip()
+    AWS_S3_REGION_NAME = b2_region
     AWS_S3_ENDPOINT_URL = b2_endpoint
     AWS_S3_SIGNATURE_VERSION = 's3v4'
     AWS_S3_ADDRESSING_STYLE = 'path'

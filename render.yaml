@@ -28,7 +28,7 @@ services:
       - key: DEFAULT_FROM_EMAIL
         sync: false
       - key: USE_S3
-        value: True
+        value: False
       - key: B2_ACCESS_KEY_ID
         sync: false
       - key: B2_SECRET_ACCESS_KEY
